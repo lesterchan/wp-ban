@@ -1,0 +1,325 @@
+# Copyright (C) 2010 WP-Ban
+# This file is distributed under the same license as the WP-Ban package.
+msgid ""
+msgstr ""
+"Project-Id-Version: WP-Ban 1.50\n"
+"Report-Msgid-Bugs-To: http://wordpress.org/tag/wp-ban\n"
+"POT-Creation-Date: 2011-02-23 15:01:05+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2011-02-23 23:04+0800\n"
+"Last-Translator: Lester Chan <lesterchan@gmail.com>\n"
+"Language-Team: Lester Chan <lesterchan@gmail.com>\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Poedit-Language: English\n"
+"X-Poedit-Country: SINGAPORE\n"
+"X-Poedit-KeywordsList: __\n"
+"X-Poedit-Basepath: .\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: ban-options.php:51
+msgid "This IP '%s' Belongs To The Admin And Will Not Be Added To Ban List"
+msgstr ""
+
+#: ban-options.php:64
+msgid "The Admin's IP '%s' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List"
+msgstr ""
+
+#: ban-options.php:74
+msgid "This Hostname '%s' Belongs To The Admin And Will Not Be Added To Ban List"
+msgstr ""
+
+#: ban-options.php:84
+msgid "This Referer '%s' Belongs To This Site And Will Not Be Added To Ban List"
+msgstr ""
+
+#: ban-options.php:94
+msgid "This User Agent '%s' Is Used By The Current Admin And Will Not Be Added To Ban List"
+msgstr ""
+
+#: ban-options.php:113
+#: ban-options.php:310
+msgid "Banned IPs"
+msgstr ""
+
+#: ban-options.php:114
+#: ban-options.php:324
+msgid "Banned IP Range"
+msgstr ""
+
+#: ban-options.php:115
+#: ban-options.php:337
+msgid "Banned Host Names"
+msgstr ""
+
+#: ban-options.php:116
+#: ban-options.php:351
+msgid "Banned Referers"
+msgstr ""
+
+#: ban-options.php:117
+#: ban-options.php:365
+msgid "Banned User Agents"
+msgstr ""
+
+#: ban-options.php:118
+msgid "Banned Excluded IPs"
+msgstr ""
+
+#: ban-options.php:119
+#: ban-options.php:395
+msgid "Banned Message"
+msgstr ""
+
+#: ban-options.php:123
+msgid "Updated"
+msgstr ""
+
+#: ban-options.php:128
+msgid "No Ban Option Updated"
+msgstr ""
+
+#: ban-options.php:135
+#: ban-options.php:460
+msgid "Reset Ban Stats"
+msgstr ""
+
+#: ban-options.php:139
+msgid "All IP Ban Stats And Total Ban Stat Reseted"
+msgstr ""
+
+#: ban-options.php:147
+msgid "Selected IP Ban Stats Reseted"
+msgstr ""
+
+#: ban-options.php:151
+#: ban-options.php:500
+msgid "UNINSTALL WP-Ban"
+msgstr ""
+
+#: ban-options.php:159
+msgid "Setting Key '%s' has been deleted."
+msgstr ""
+
+#: ban-options.php:163
+msgid "Error deleting Setting Key '%s'."
+msgstr ""
+
+#: ban-options.php:185
+#: ban-options.php:468
+msgid "Uninstall WP-Ban"
+msgstr ""
+
+#: ban-options.php:186
+msgid "<a href=\"%s\">Click Here</a> To Finish The Uninstallation And WP-Ban Will Be Deactivated Automatically."
+msgstr ""
+
+#: ban-options.php:247
+#: wp-ban.php:238
+msgid "You Are Banned."
+msgstr ""
+
+#: ban-options.php:276
+msgid "Ban Options"
+msgstr ""
+
+#: ban-options.php:280
+msgid "Your Details"
+msgstr ""
+
+#: ban-options.php:281
+msgid "Value"
+msgstr ""
+
+#: ban-options.php:285
+msgid "IP"
+msgstr ""
+
+#: ban-options.php:289
+msgid "Host Name"
+msgstr ""
+
+#: ban-options.php:293
+msgid "User Agent"
+msgstr ""
+
+#: ban-options.php:297
+msgid "Site URL"
+msgstr ""
+
+#: ban-options.php:302
+msgid "Please <strong>DO NOT</strong> ban yourself."
+msgstr ""
+
+#: ban-options.php:311
+msgid "Use <strong>*</strong> for wildcards."
+msgstr ""
+
+#: ban-options.php:312
+#: ban-options.php:325
+#: ban-options.php:339
+#: ban-options.php:353
+#: ban-options.php:367
+#: ban-options.php:382
+msgid "Start each entry on a new line."
+msgstr ""
+
+#: ban-options.php:313
+#: ban-options.php:326
+#: ban-options.php:340
+#: ban-options.php:354
+#: ban-options.php:368
+#: ban-options.php:383
+msgid "Examples:"
+msgstr ""
+
+#: ban-options.php:328
+#: ban-options.php:356
+#: ban-options.php:385
+msgid "Notes:"
+msgstr ""
+
+#: ban-options.php:329
+#: ban-options.php:386
+msgid "No Wildcards Allowed."
+msgstr ""
+
+#: ban-options.php:338
+#: ban-options.php:352
+#: ban-options.php:366
+msgid "Use <strong>*</strong> for wildcards"
+msgstr ""
+
+#: ban-options.php:357
+msgid "There are ways to bypass this method of banning."
+msgstr ""
+
+#: ban-options.php:372
+msgid "Suggestions:"
+msgstr ""
+
+#: ban-options.php:373
+msgid "See <a href=\"http://www.user-agents.org/\">http://www.user-agents.org/</a>"
+msgstr ""
+
+#: ban-options.php:381
+msgid "Banned Exclude IPs"
+msgstr ""
+
+#: ban-options.php:387
+msgid "These Users Will Not Get Banned."
+msgstr ""
+
+#: ban-options.php:396
+msgid "Allowed Variables:"
+msgstr ""
+
+#: ban-options.php:403
+msgid "Restore Default Template"
+msgstr ""
+
+#: ban-options.php:404
+msgid "Preview Banned Message"
+msgstr ""
+
+#: ban-options.php:412
+msgid "Save Changes"
+msgstr ""
+
+#: ban-options.php:420
+msgid "Ban Stats"
+msgstr ""
+
+#: ban-options.php:425
+msgid "IPs"
+msgstr ""
+
+#: ban-options.php:426
+msgid "Attempts"
+msgstr ""
+
+#: ban-options.php:427
+msgid "Action"
+msgstr ""
+
+#: ban-options.php:444
+msgid "Reset this IP ban stat?"
+msgstr ""
+
+#: ban-options.php:450
+msgid "No Attempts"
+msgstr ""
+
+#: ban-options.php:455
+msgid "Total  Attempts:"
+msgstr ""
+
+#: ban-options.php:457
+msgid "Reset all IP ban stats and total ban stat?"
+msgstr ""
+
+#: ban-options.php:460
+msgid "You Are About To Reset Ban Stats."
+msgstr ""
+
+#: ban-options.php:460
+msgid "This Action Is Not Reversible. Are you sure?"
+msgstr ""
+
+#: ban-options.php:470
+msgid "Deactivating WP-Ban plugin does not remove any data that may have been created, such as the ban options. To completely remove this plugin, you can uninstall it here."
+msgstr ""
+
+#: ban-options.php:473
+msgid "WARNING:"
+msgstr ""
+
+#: ban-options.php:474
+msgid "Once uninstalled, this cannot be undone. You should use a Database Backup plugin of WordPress to back up all the data first."
+msgstr ""
+
+#: ban-options.php:477
+msgid "The following WordPress Options will be DELETED:"
+msgstr ""
+
+#: ban-options.php:482
+msgid "WordPress Options"
+msgstr ""
+
+#: ban-options.php:499
+msgid "Yes"
+msgstr ""
+
+#: ban-options.php:500
+msgid ""
+"You Are About To Uninstall WP-Ban From WordPress.\\n"
+"This Action Is Not Reversible.\\n"
+"\\n"
+" Choose [Cancel] To Stop, [OK] To Uninstall."
+msgstr ""
+
+#: wp-ban.php:42
+msgid "Ban"
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "WP-Ban"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+msgid "http://lesterchan.net/portfolio/programming/php/"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid "Ban users by IP, IP Range, host name, user agent and referer url from visiting your WordPress's blog. It will display a custom ban message when the banned IP, IP range, host name, user agent or referer url tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recordered on how many times they attemp to visit your blog. It allows wildcard matching too."
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Lester 'GaMerZ' Chan"
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "http://lesterchan.net"
+msgstr ""
+
