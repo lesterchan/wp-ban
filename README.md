@@ -1,10 +1,10 @@
 # WP-Ban
-Contributors: GamerZ
-Donate link: http://lesterchan.net/wordpress
-Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range
-Requires at least: 2.8
-Tested up to: 3.5.1
-Stable tag: trunk
+Contributors: GamerZ  
+Donate link: http://lesterchan.net/wordpress  
+Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
+Requires at least: 2.8  
+Tested up to: 3.5.1  
+Stable tag: trunk  
 
 Ban users by IP, IP Range, host name, user agent and referrer url from visiting your WordPress's blog.
 
