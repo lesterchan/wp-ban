@@ -3,7 +3,7 @@ Contributors: GamerZ
 Donate link: http://lesterchan.net/wordpress  
 Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
 Requires at least: 2.8  
-Tested up to: 3.5.1  
+Tested up to: 3.9  
 Stable tag: trunk  
 
 Ban users by IP, IP Range, host name, user agent and referrer url from visiting your WordPress's blog.
@@ -12,20 +12,11 @@ Ban users by IP, IP Range, host name, user agent and referrer url from visiting 
 
 It will display a custom ban message when the banned IP, IP range, host name or referrer url that tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recorded on how many times they attempt to visit your blog. It allows wildcard matching too.
 
-### Previous Versions
-* [WP-Ban 1.50 For WordPress 2.7.x And 2.8.x](http://downloads.wordpress.org/plugin/wp-ban.1.50.zip "WP-Ban 1.50 For WordPress 2.7.x And 2.8.x")
-* [WP-Ban 1.31 For WordPress 2.5.x And 2.6.x](http://downloads.wordpress.org/plugin/wp-ban.1.31.zip "WP-Ban 1.31 For WordPress 2.5.x And 2.6.x")
-* [WP-Ban 1.20 For WordPress 2.1.x To 2.3.x](http://downloads.wordpress.org/plugin/wp-ban.1.20.zip "WP-Ban 1.20 For WordPress 2.1.x To 2.3.x")
-* [WP-Ban 1.00 For WordPress 2.0.x](http://downloads.wordpress.org/plugin/wp-ban.1.00.zip "WP-Ban 1.00 For WordPress 2.0.x")
-
 ### Development
-* [http://dev.wp-plugins.org/browser/wp-ban/](http://dev.wp-plugins.org/browser/wp-ban/ "http://dev.wp-plugins.org/browser/wp-ban/")
+* [https://github.com/lesterchan/wp-ban](https://github.com/lesterchan/wp-ban "https://github.com/lesterchan/wp-ban")
 
 ### Translations
 * [http://dev.wp-plugins.org/browser/wp-ban/i18n/](http://dev.wp-plugins.org/browser/wp-ban/i18n/ "http://dev.wp-plugins.org/browser/wp-ban/i18n/")
-
-### Support Forums
-* [http://forums.lesterchan.net/index.php?board=10.0](http://forums.lesterchan.net/index.php?board=10.0 "http://forums.lesterchan.net/index.php?board=10.0")
 
 ### Credits
 * Right To Left Language Support by [Kambiz R. Khojasteh](http://persian-programming.com/ "Kambiz R. Khojasteh")
