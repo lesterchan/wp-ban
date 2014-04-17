@@ -1,6 +1,6 @@
 # WP-Ban
 Contributors: GamerZ  
-Donate link: http://lesterchan.net/wordpress  
+Donate link: http://lesterchan.net/site/donation/  
 Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
 Requires at least: 2.8  
 Tested up to: 3.9  
