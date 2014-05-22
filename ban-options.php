@@ -1,22 +1,4 @@
 <?php
-/*
-+----------------------------------------------------------------+
-|																							|
-|	WordPress Plugin: WP-Ban											|
-|	Copyright (c) 2012 Lester "GaMerZ" Chan									|
-|																							|
-|	File Written By:																	|
-|	- Lester "GaMerZ" Chan															|
-|	- http://lesterchan.net															|
-|																							|
-|	File Information:																	|
-|	- WP-Ban Options																	|
-|	- wp-content/plugins/wp-ban/ban-options.php							|
-|																							|
-+----------------------------------------------------------------+
-*/
-
-
 ### Check Whether User Can Manage Ban Options
 if(!current_user_can('manage_options')) {
 	die('Access Denied');
@@ -27,7 +9,7 @@ if(!current_user_can('manage_options')) {
 $base_name = plugin_basename('wp-ban/ban-options.php');
 $base_page = 'admin.php?page='.$base_name;
 $admin_login = trim($current_user->user_login);
-$mode = trim($_GET['mode']);
+$mode = (isset($_GET['mode']) ? trim($_GET['mode']) : '');
 $ban_settings = array('banned_ips', 'banned_hosts', 'banned_stats', 'banned_message', 'banned_referers', 'banned_exclude_ips', 'banned_ips_range', 'banned_user_agents');
 
 
@@ -37,10 +19,10 @@ if(!empty($_POST['Submit'])) {
 	check_admin_referer('wp-ban_templates');
 	$text = '';
 	$update_ban_queries = array();
-	$update_ban_text = array();	
+	$update_ban_text = array();
 	$banned_ips_post = explode("\n", trim($_POST['banned_ips']));
 	$banned_ips_range_post = explode("\n", trim($_POST['banned_ips_range']));
-	$banned_hosts_post = explode("\n", trim($_POST['banned_hosts']));	
+	$banned_hosts_post = explode("\n", trim($_POST['banned_hosts']));
 	$banned_referers_post = explode("\n", trim($_POST['banned_referers']));
 	$banned_user_agents_post = explode("\n", trim($_POST['banned_user_agents']));
 	$banned_exclude_ips_post = explode("\n", trim($_POST['banned_exclude_ips']));
@@ -168,7 +150,7 @@ if(!empty($_POST['do'])) {
 					}
 				}
 				echo '</p>';
-				echo '</div>'; 
+				echo '</div>';
 				$mode = 'end-UNINSTALL';
 			}
 			break;
@@ -181,7 +163,7 @@ switch($mode) {
 		//  Deactivating WP-Ban
 		case 'end-UNINSTALL':
 			$deactivate_url = 'plugins.php?action=deactivate&amp;plugin=wp-ban/wp-ban.php';
-			if(function_exists('wp_nonce_url')) { 
+			if(function_exists('wp_nonce_url')) {
 				$deactivate_url = wp_nonce_url($deactivate_url, 'deactivate-plugin_wp-ban/wp-ban.php');
 			}
 			echo '<div class="wrap">';
@@ -201,6 +183,7 @@ switch($mode) {
 		$banned_ips_range_display = '';
 		$banned_hosts_display = '';
 		$banned_referers_display = '';
+		$banned_user_agents_display = '';
 		$banned_exclude_ips_display = '';
 		if(!empty($banned_ips)) {
 			foreach($banned_ips as $banned_ip) {
@@ -492,7 +475,7 @@ switch($mode) {
 <!-- Uninstall WP-Ban -->
 <form method="post" action="<?php echo admin_url('admin.php?page='.plugin_basename(__FILE__)); ?>">
 <?php wp_nonce_field('wp-ban_uninstall'); ?>
-<div class="wrap"> 
+<div class="wrap">
 	<h3><?php _e('Uninstall WP-Ban', 'wp-ban'); ?></h3>
 	<p>
 		<?php _e('Deactivating WP-Ban plugin does not remove any data that may have been created, such as the ban options. To completely remove this plugin, you can uninstall it here.', 'wp-ban'); ?>
@@ -527,7 +510,7 @@ switch($mode) {
 		<input type="checkbox" name="uninstall_ban_yes" value="yes" />&nbsp;<?php _e('Yes', 'wp-ban'); ?><br /><br />
 		<input type="submit" name="do" value="<?php _e('UNINSTALL WP-Ban', 'wp-ban'); ?>" class="button" onclick="return confirm('<?php _e('You Are About To Uninstall WP-Ban From WordPress.\nThis Action Is Not Reversible.\n\n Choose [Cancel] To Stop, [OK] To Uninstall.', 'wp-ban'); ?>')" />
 	</p>
-</div> 
+</div>
 </form>
 <?php
 } // End switch($mode)

@@ -3,7 +3,7 @@
 Plugin Name: WP-Ban
 Plugin URI: http://lesterchan.net/portfolio/programming/php/
 Description: Ban users by IP, IP Range, host name, user agent and referer url from visiting your WordPress's blog. It will display a custom ban message when the banned IP, IP range, host name, user agent or referer url tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recordered on how many times they attemp to visit your blog. It allows wildcard matching too.
-Version: 1.62
+Version: 1.63
 Author: Lester 'GaMerZ' Chan
 Author URI: http://lesterchan.net
 Text Domain: wp-ban
@@ -11,7 +11,7 @@ Text Domain: wp-ban
 
 
 /*
-	Copyright 2013  Lester Chan  (email : lesterchan@gmail.com)
+	Copyright 2014  Lester Chan  (email : lesterchan@gmail.com)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,18 +30,16 @@ Text Domain: wp-ban
 
 
 ### Create Text Domain For Translation
-add_action('init', 'ban_textdomain');
+add_action( 'plugins_loaded', 'ban_textdomain' );
 function ban_textdomain() {
-	load_plugin_textdomain('wp-ban', false, 'wp-ban');
+	load_plugin_textdomain( 'wp-ban', false, dirname( plugin_basename( __FILE__ ) ) );
 }
 
 
 ### Function: Ban Menu
 add_action('admin_menu', 'ban_menu');
 function ban_menu() {
-	if (function_exists('add_management_page')) {
-		add_options_page(__('Ban', 'wp-ban'), __('Ban', 'wp-ban'), 'manage_options', 'wp-ban/ban-options.php');
-	}
+	add_options_page(__('Ban', 'wp-ban'), __('Ban', 'wp-ban'), 'manage_options', 'wp-ban/ban-options.php');
 }
 
 
@@ -257,17 +255,10 @@ function preg_match_wildcard($regex, $subject) {
 ### Function: Create Ban Options
 add_action('activate_wp-ban/wp-ban.php', 'ban_init');
 function ban_init() {
-	global $wpdb;
 	ban_textdomain();
-	$banned_ips = array();
-	$banned_ips_range = array();
-	$banned_hosts = array();
-	$banned_referers = array();
-	$banned_exclude_ips = array();
-	$banned_stats = array('users' => array(), 'count' => 0);
-	add_option('banned_ips', $banned_ips, 'Banned IPs');
-	add_option('banned_hosts', $banned_hosts, 'Banned Hosts');
-	add_option('banned_stats', $banned_stats, 'WP-Ban Stats');
+	add_option('banned_ips', array());
+	add_option('banned_hosts',array());
+	add_option('banned_stats', array('users' => array(), 'count' => 0));
 	add_option('banned_message', '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'."\n".
 	'<html xmlns="http://www.w3.org/1999/xhtml" '.get_language_attributes().'>'."\n".
 	'<head>'."\n".
@@ -281,10 +272,10 @@ function ban_init() {
 	'</body>'."\n".
 	'</html>', 'Banned Message');
 	// Database Upgrade For WP-Ban 1.11
-	add_option('banned_referers', $banned_referers, 'Banned Referers');
-	add_option('banned_exclude_ips', $banned_exclude_ips, 'Banned Exclude IP');
-	add_option('banned_ips_range', $banned_ips_range, 'Banned IP Range');
+	add_option('banned_referers', array());
+	add_option('banned_exclude_ips', array());
+	add_option('banned_ips_range', array());
 	// Database Upgrade For WP-Ban 1.30
-	add_option('banned_user_agents', $banned_user_agents, 'Banned User Agents');
+	add_option('banned_user_agents', array());
 }
 ?>
