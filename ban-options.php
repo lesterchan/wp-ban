@@ -263,7 +263,7 @@ switch($mode) {
 			else
 			{
 				jQuery(this).val('<?php _e('Show Banned Message Template', 'wp-ban'); ?>');
-				jQuery.ajax({type: 'GET', url: '<?php echo admin_url('admin-ajax.php', (is_ssl() ? 'https' : 'http')); ?>', data: 'action=ban-admin', cache: false, success: function(data) {
+				jQuery.ajax({type: 'GET', url: '<?php echo admin_url('admin-ajax.php'); ?>', data: 'action=ban-admin', cache: false, success: function(data) {
 					var html_message = data;
 					jQuery(banned_template_message_el).fadeOut('fast', function() {
 						jQuery(html_message).filter('#wp-ban-container').appendTo('#banned_preview_message');
