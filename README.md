@@ -9,8 +9,10 @@ Stable tag: 1.63
 Ban users by IP, IP Range, host name, user agent and referrer url from visiting your WordPress's blog.
 
 ## Description
-
 It will display a custom ban message when the banned IP, IP range, host name or referrer url that tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recorded on how many times they attempt to visit your blog. It allows wildcard matching too.
+
+### Build Status
+[![Build Status](https://travis-ci.org/lesterchan/wp-ban.svg?branch=master)](https://travis-ci.org/lesterchan/wp-ban)
 
 ### Development
 * [https://github.com/lesterchan/wp-ban](https://github.com/lesterchan/wp-ban "https://github.com/lesterchan/wp-ban")
