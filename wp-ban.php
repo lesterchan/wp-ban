@@ -3,7 +3,7 @@
 Plugin Name: WP-Ban
 Plugin URI: http://lesterchan.net/portfolio/programming/php/
 Description: Ban users by IP, IP Range, host name, user agent and referer url from visiting your WordPress's blog. It will display a custom ban message when the banned IP, IP range, host name, user agent or referer url tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recordered on how many times they attemp to visit your blog. It allows wildcard matching too.
-Version: 1.63
+Version: 1.64
 Author: Lester 'GaMerZ' Chan
 Author URI: http://lesterchan.net
 Text Domain: wp-ban
@@ -43,24 +43,31 @@ function ban_menu() {
 }
 
 
-### Function: Get IP Address
-if(!function_exists('get_IP')) {
-	function get_IP() {
-		if(!empty($_SERVER['HTTP_CLIENT_IP'])) {
-			$ip_address = $_SERVER['HTTP_CLIENT_IP'];
-		} else if(!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-			$ip_address = $_SERVER['HTTP_X_FORWARDED_FOR'];
-		} else if(!empty($_SERVER['REMOTE_ADDR'])) {
-			$ip_address = $_SERVER['REMOTE_ADDR'];
-		} else {
-			$ip_address = '';
+### Function: Get IP Address (http://stackoverflow.com/a/2031935)
+function ban_get_ip() {
+	$banned_options = get_option( 'banned_options' );
+
+	if( intval( $banned_options['reverse_proxy'] ) === 1 ) {
+		foreach ( array( 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR' ) as $key ) {
+			if ( array_key_exists( $key, $_SERVER ) === true ) {
+				foreach ( explode( ',', $_SERVER[$key] ) as $ip ) {
+					$ip = trim( $ip );
+					if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ) {
+						return esc_attr( $ip );
+					}
+				}
+			}
 		}
-		if(strpos($ip_address, ',') !== false) {
-			$ip_address = explode(',', $ip_address);
-			$ip_address = $ip_address[0];
+	} else if( !empty( $_SERVER['REMOTE_ADDR'] ) ) {
+		$ip = $_SERVER['REMOTE_ADDR'];
+		if( strpos( $ip, ',' ) !== false ) {
+			$ip = explode( ',', $ip );
+			$ip = $ip[0];
 		}
-		return esc_attr($ip_address);
+		return esc_attr( $ip );
 	}
+
+	return '';
 }
 
 
@@ -72,9 +79,9 @@ function preview_banned_message()
 	$banned_message = stripslashes(get_option('banned_message'));
 	$banned_message = str_replace("%SITE_NAME%", get_option('blogname'), $banned_message);
 	$banned_message = str_replace("%SITE_URL%",  get_option('siteurl'), $banned_message);
-	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($banned_stats['users'][get_IP()]), $banned_message);
-	$banned_message = str_replace("%USER_IP%", get_IP(), $banned_message);
-	$banned_message = str_replace("%USER_HOSTNAME%",  @gethostbyaddr(get_IP()), $banned_message);
+	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($banned_stats['users'][ban_get_ip()]), $banned_message);
+	$banned_message = str_replace("%USER_IP%", ban_get_ip(), $banned_message);
+	$banned_message = str_replace("%USER_HOSTNAME%",  @gethostbyaddr(ban_get_ip()), $banned_message);
 	$banned_message = str_replace("%TOTAL_ATTEMPTS_COUNT%", number_format_i18n($banned_stats['count']), $banned_message);
 	echo $banned_message;
 	exit();
@@ -86,14 +93,14 @@ function print_banned_message() {
 	// Credits To Joe (Ttech) - http://blog.fileville.net/
 	$banned_stats = get_option('banned_stats');
 	$banned_stats['count'] = intval($banned_stats['count']) + 1;
-	$banned_stats['users'][get_IP()] = intval($banned_stats['users'][get_IP()]) + 1;
+	$banned_stats['users'][ban_get_ip()] = intval($banned_stats['users'][ban_get_ip()]) + 1;
 	update_option('banned_stats', $banned_stats);
 	$banned_message = stripslashes(get_option('banned_message'));
 	$banned_message = str_replace("%SITE_NAME%", get_option('blogname'), $banned_message);
 	$banned_message = str_replace("%SITE_URL%",  get_option('siteurl'), $banned_message);
-	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($banned_stats['users'][get_IP()]), $banned_message);
-	$banned_message = str_replace("%USER_IP%", get_IP(), $banned_message);
-	$banned_message = str_replace("%USER_HOSTNAME%",  @gethostbyaddr(get_IP()), $banned_message);
+	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($banned_stats['users'][ban_get_ip()]), $banned_message);
+	$banned_message = str_replace("%USER_IP%", ban_get_ip(), $banned_message);
+	$banned_message = str_replace("%USER_HOSTNAME%",  @gethostbyaddr(ban_get_ip()), $banned_message);
 	$banned_message = str_replace("%TOTAL_ATTEMPTS_COUNT%", number_format_i18n($banned_stats['count']), $banned_message);
 	echo $banned_message;
 	exit();
@@ -120,7 +127,7 @@ function process_ban_ip_range($banned_ips_range) {
 			$range = explode('-', $banned_ip_range);
 			$range_start = trim($range[0]);
 			$range_end = trim($range[1]);
-			if(check_ip_within_range(get_IP(), $range_start, $range_end)) {
+			if(check_ip_within_range(ban_get_ip(), $range_start, $range_end)) {
 				print_banned_message();
 				break;
 			}
@@ -132,7 +139,7 @@ function process_ban_ip_range($banned_ips_range) {
 ### Function: Banned
 add_action('init', 'banned');
 function banned() {
-	$ip = get_IP();
+	$ip = ban_get_ip();
 	if($ip == 'unknown') {
 		return;
 	}
@@ -187,7 +194,7 @@ function banned() {
 
 ### Function: Check Whether Or Not The IP Address Belongs To Admin
 function is_admin_ip($check) {
-	return preg_match_wildcard($check, get_IP());
+	return preg_match_wildcard($check, ban_get_ip());
 }
 
 
@@ -205,7 +212,7 @@ function check_ip_within_range($ip, $range_start, $range_end) {
 
 ### Function: Check Whether Or Not The Hostname Belongs To Admin
 function is_admin_hostname($check) {
-	return preg_match_wildcard($check, @gethostbyaddr(get_IP()));
+	return preg_match_wildcard($check, @gethostbyaddr(ban_get_ip()));
 }
 
 
@@ -252,10 +259,32 @@ function preg_match_wildcard($regex, $subject) {
 }
 
 
-### Function: Create Ban Options
-add_action('activate_wp-ban/wp-ban.php', 'ban_init');
-function ban_init() {
-	ban_textdomain();
+### Function: Activate Plugin
+register_activation_hook( __FILE__, 'ban_activation' );
+function ban_activation( $network_wide )
+{
+	if ( is_multisite() && $network_wide )
+	{
+		$ms_sites = wp_get_sites();
+
+		if( 0 < sizeof( $ms_sites ) )
+		{
+			foreach ( $ms_sites as $ms_site )
+			{
+				switch_to_blog( $ms_site['blog_id'] );
+				ban_activate();
+			}
+		}
+
+		restore_current_blog();
+	}
+	else
+	{
+		ban_activate();
+	}
+}
+
+function ban_activate() {
 	add_option('banned_ips', array());
 	add_option('banned_hosts',array());
 	add_option('banned_stats', array('users' => array(), 'count' => 0));
@@ -277,5 +306,6 @@ function ban_init() {
 	add_option('banned_ips_range', array());
 	// Database Upgrade For WP-Ban 1.30
 	add_option('banned_user_agents', array());
+	// Database Upgrade For WP-Ban 1.64
+	add_option( 'banned_options', array( 'reverse_proxy' => 1 ) );
 }
-?>

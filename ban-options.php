@@ -18,8 +18,10 @@ $ban_settings = array('banned_ips', 'banned_hosts', 'banned_stats', 'banned_mess
 if(!empty($_POST['Submit'])) {
 	check_admin_referer('wp-ban_templates');
 	$text = '';
-	$update_ban_queries = array();
-	$update_ban_text = array();
+
+	$banned_options = array();
+	$banned_options['reverse_proxy'] = intval( $_POST['banned_option_reverse_proxy'] );
+
 	$banned_ips_post = explode("\n", trim($_POST['banned_ips']));
 	$banned_ips_range_post = explode("\n", trim($_POST['banned_ips_range']));
 	$banned_hosts_post = explode("\n", trim($_POST['banned_hosts']));
@@ -27,10 +29,11 @@ if(!empty($_POST['Submit'])) {
 	$banned_user_agents_post = explode("\n", trim($_POST['banned_user_agents']));
 	$banned_exclude_ips_post = explode("\n", trim($_POST['banned_exclude_ips']));
 	$banned_message = trim($_POST['banned_template_message']);
+
 	if(!empty($banned_ips_post)) {
 		$banned_ips = array();
 		foreach($banned_ips_post as $banned_ip) {
-			if($admin_login == 'admin' && ($banned_ip == get_IP() || is_admin_ip($banned_ip))) {
+			if($admin_login == 'admin' && ($banned_ip == ban_get_ip() || is_admin_ip($banned_ip))) {
 				$text .= '<font color="blue">'.sprintf(__('This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'),$banned_ip).'</font><br />';
 			} else {
 				$banned_ips[] = trim($banned_ip);
@@ -43,8 +46,8 @@ if(!empty($_POST['Submit'])) {
 			$range = explode('-', $banned_ip_range);
 			$range_start = trim($range[0]);
 			$range_end = trim($range[1]);
-			if($admin_login == 'admin' && (check_ip_within_range(get_IP(), $range_start, $range_end))) {
-				$text .= '<font color="blue">'.sprintf(__('The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban'), get_IP(), $range_start, $range_end).'</font><br />';
+			if($admin_login == 'admin' && (check_ip_within_range(ban_get_ip(), $range_start, $range_end))) {
+				$text .= '<font color="blue">'.sprintf(__('The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban'), ban_get_ip(), $range_start, $range_end).'</font><br />';
 			} else {
 				$banned_ips_range[] = trim($banned_ip_range);
 			}
@@ -53,7 +56,7 @@ if(!empty($_POST['Submit'])) {
 	if(!empty($banned_hosts_post)) {
 		$banned_hosts = array();
 		foreach($banned_hosts_post as $banned_host) {
-			if($admin_login == 'admin' && ($banned_host == @gethostbyaddr(get_IP()) || is_admin_hostname($banned_host))) {
+			if($admin_login == 'admin' && ($banned_host == @gethostbyaddr(ban_get_ip()) || is_admin_hostname($banned_host))) {
 				$text .= '<font color="blue">'.sprintf(__('This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_host).'</font><br />';
 			} else {
 				$banned_hosts[] = trim($banned_host);
@@ -86,6 +89,8 @@ if(!empty($_POST['Submit'])) {
 			$banned_exclude_ips[] = trim($banned_exclude_ip);
 		}
 	}
+	$update_ban_queries = array();
+	$update_ban_queries[] = update_option( 'banned_options', $banned_options );
 	$update_ban_queries[] = update_option('banned_ips', $banned_ips);
 	$update_ban_queries[] = update_option('banned_ips_range', $banned_ips_range);
 	$update_ban_queries[] = update_option('banned_hosts', $banned_hosts);
@@ -93,6 +98,8 @@ if(!empty($_POST['Submit'])) {
 	$update_ban_queries[] = update_option('banned_user_agents', $banned_user_agents);
 	$update_ban_queries[] = update_option('banned_exclude_ips', $banned_exclude_ips);
 	$update_ban_queries[] = update_option('banned_message', $banned_message);
+	$update_ban_text = array();
+	$update_ban_text[] = __( 'Banned Options', 'wp-ban' );
 	$update_ban_text[] = __('Banned IPs', 'wp-ban');
 	$update_ban_text[] = __('Banned IP Range', 'wp-ban');
 	$update_ban_text[] = __('Banned Host Names', 'wp-ban');
@@ -221,7 +228,8 @@ switch($mode) {
 		$banned_referers_display = trim($banned_referers_display);
 		$banned_user_agents_display = trim($banned_user_agents_display);
 		$banned_exclude_ips_display = trim($banned_exclude_ips_display);
-		$banned_stats = get_option('banned_stats');
+		$banned_stats = get_option( 'banned_stats' );
+		$banned_options = get_option( 'banned_options' );
 ?>
 <script type="text/javascript">
 /* <![CDATA[*/
@@ -290,11 +298,11 @@ switch($mode) {
 		</thead>
 		<tr>
 			<td><?php _e('IP', 'wp-ban'); ?>:</td>
-			<td><strong><?php echo get_IP(); ?></strong></td>
+			<td><strong><?php echo ban_get_ip(); ?></strong></td>
 		</tr>
 		<tr class="alternate">
 			<td><?php _e('Host Name', 'wp-ban'); ?>:</td>
-			<td><strong><?php echo @gethostbyaddr(get_IP()); ?></strong></td>
+			<td><strong><?php echo @gethostbyaddr(ban_get_ip()); ?></strong></td>
 		</tr>
 		<tr>
 			<td><?php _e('User Agent', 'wp-ban'); ?>:</td>
@@ -312,6 +320,18 @@ switch($mode) {
 	</table>
 	<p>&nbsp;</p>
 	<table class="form-table">
+		<tr>
+			<td width="40%" valign="top">
+				<strong><?php _e('Reverse Proxy Check', 'wp-ban'); ?>:</strong><br />
+				<?php _e( 'This will check against headers such as HTTP_X_FORWARDED_FOR for your user\'s IP instead of getting it from REMOTE_ADDR.' ); ?>
+			</td>
+			<td width="60%">
+				<label>
+					<input type="checkbox" name="banned_option_reverse_proxy" value="1"<?php echo ( intval( $banned_options['reverse_proxy'] ) === 1 ) ? ' checked="checked"' : ''; ?> />
+					<?php _e( 'I am using a reverse proxy.' ); ?>
+				</label>
+			</td>
+		</tr>
 		<tr>
 			<td valign="top">
 				<strong><?php _e('Banned IPs', 'wp-ban'); ?>:</strong><br />
