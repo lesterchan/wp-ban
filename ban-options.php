@@ -323,13 +323,16 @@ switch($mode) {
 		<tr>
 			<td width="40%" valign="top">
 				<strong><?php _e('Reverse Proxy Check', 'wp-ban'); ?>:</strong><br />
-				<?php _e( 'This will check against headers such as HTTP_X_FORWARDED_FOR for your user\'s IP instead of getting it from REMOTE_ADDR.' ); ?>
+				<?php _e( 'This will assume that incoming requests include the user\'s IP address in the HTTP_X_FORWARDED_FOR (and the request IP will be from your proxy).' ); ?>
 			</td>
 			<td width="60%">
 				<label>
 					<input type="checkbox" name="banned_option_reverse_proxy" value="1"<?php echo ( intval( $banned_options['reverse_proxy'] ) === 1 ) ? ' checked="checked"' : ''; ?> />
 					<?php _e( 'I am using a reverse proxy.' ); ?>
 				</label>
+				<p>
+					<?php _e( 'If you\'re not sure, leave this uncheck. Ticking this box when you don\'t have a reverse proxy will make it easy to bypass the IP ban.' ); ?>
+				</p>
 			</td>
 		</tr>
 		<tr>

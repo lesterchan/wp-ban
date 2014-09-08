@@ -307,5 +307,5 @@ function ban_activate() {
 	// Database Upgrade For WP-Ban 1.30
 	add_option('banned_user_agents', array());
 	// Database Upgrade For WP-Ban 1.64
-	add_option( 'banned_options', array( 'reverse_proxy' => 1 ) );
+	add_option( 'banned_options', array( 'reverse_proxy' => 0 ) );
 }
