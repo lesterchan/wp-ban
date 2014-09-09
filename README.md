@@ -28,7 +28,7 @@ It will display a custom ban message when the banned IP, IP range, host name or 
 
 ## Changelog
 ### Version 1.64
-* NEW: Added a new ban option 'reverse proxy' to allow user to choose whether to check against HTTP_X_FORWARDED_FOR header for IP
+* NEW: Added a new ban option 'reverse proxy' to allow user to choose whether to check against HTTP_X_FORWARDED_FOR header for IP. Props Tom Adams at dxw. This fixes CVE-2014-6230
 
 ### Version 1.63
 * FIXED: Notices
