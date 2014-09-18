@@ -28,7 +28,7 @@ It will display a custom ban message when the banned IP, IP range, host name or 
 
 ## Changelog
 ### Version 1.64
-* NEW: Added a new ban option 'reverse proxy' to allow user to choose whether to check against HTTP_X_FORWARDED_FOR header for IP. Props Tom Adams at dxw. This fixes CVE-2014-6230
+* NEW: Added a new ban option 'reverse proxy' to allow user to choose whether to check against HTTP_X_FORWARDED_FOR header for IP. Props Tom Adams at dxw. This fixes [CVE-2014-6230](https://security.dxw.com/advisories/vulnerability-in-wp-ban-allows-visitors-to-bypass-the-ip-blacklist-in-some-configurations/)
 
 ### Version 1.63
 * FIXED: Notices
