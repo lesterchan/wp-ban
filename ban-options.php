@@ -30,7 +30,7 @@ if(!empty($_POST['Submit'])) {
 		$banned_ips = array();
 		foreach($banned_ips_post as $banned_ip) {
 			if($admin_login == 'admin' && ($banned_ip == ban_get_ip() || is_admin_ip($banned_ip))) {
-				$text .= '<font color="blue">'.sprintf(__('This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'),$banned_ip).'</font><br />';
+				$text .= '<p style="color: blue;">'.sprintf(__('This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'),$banned_ip).'</p>';
 			} else {
 				$banned_ips[] = trim($banned_ip);
 			}
@@ -43,7 +43,7 @@ if(!empty($_POST['Submit'])) {
 			$range_start = trim($range[0]);
 			$range_end = trim($range[1]);
 			if($admin_login == 'admin' && (check_ip_within_range(ban_get_ip(), $range_start, $range_end))) {
-				$text .= '<font color="blue">'.sprintf(__('The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban'), ban_get_ip(), $range_start, $range_end).'</font><br />';
+				$text .= '<p style="color: blue;">'.sprintf(__('The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban'), ban_get_ip(), $range_start, $range_end).'</p>';
 			} else {
 				$banned_ips_range[] = trim($banned_ip_range);
 			}
@@ -53,7 +53,7 @@ if(!empty($_POST['Submit'])) {
 		$banned_hosts = array();
 		foreach($banned_hosts_post as $banned_host) {
 			if($admin_login == 'admin' && ($banned_host == @gethostbyaddr(ban_get_ip()) || is_admin_hostname($banned_host))) {
-				$text .= '<font color="blue">'.sprintf(__('This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_host).'</font><br />';
+				$text .= '<p style="color: blue;">'.sprintf(__('This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_host).'</p>';
 			} else {
 				$banned_hosts[] = trim($banned_host);
 			}
@@ -63,7 +63,7 @@ if(!empty($_POST['Submit'])) {
 		$banned_referers = array();
 		foreach($banned_referers_post as $banned_referer) {
 			if(is_admin_referer($banned_referer)) {
-				$text .= '<font color="blue">'.sprintf(__('This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban'), $banned_referer).'</font><br />';
+				$text .= '<p style="color: blue;">'.sprintf(__('This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban'), $banned_referer).'</p>';
 			} else {
 				$banned_referers[] = trim($banned_referer);
 			}
@@ -73,7 +73,7 @@ if(!empty($_POST['Submit'])) {
 		$banned_user_agents = array();
 		foreach($banned_user_agents_post as $banned_user_agent) {
 			if(is_admin_user_agent($banned_user_agent)) {
-				$text .= '<font color="blue">'.sprintf(__('This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_user_agent).'</font><br />';
+				$text .= '<p style="color: blue;">'.sprintf(__('This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_user_agent).'</p>';
 			} else {
 				$banned_user_agents[] = trim($banned_user_agent);
 			}
@@ -106,12 +106,12 @@ if(!empty($_POST['Submit'])) {
 	$i=0;
 	foreach($update_ban_queries as $update_ban_query) {
 		if($update_ban_query) {
-			$text .= '<font color="green">'.$update_ban_text[$i].' '.__('Updated', 'wp-ban').'</font><br />';
+			$text .= '<p style="color: green;">'.$update_ban_text[$i].' '.__('Updated', 'wp-ban').'</p>';
 		}
 		$i++;
 	}
 	if(empty($text)) {
-		$text = '<font color="red">'.__('No Ban Option Updated', 'wp-ban').'</font>';
+		$text = '<p style="color: red;">'.__('No Ban Option Updated', 'wp-ban').'</p>';
 	}
 }
 if(!empty($_POST['do'])) {
@@ -123,7 +123,7 @@ if(!empty($_POST['do'])) {
 			if($_POST['reset_ban_stats'] == 'yes') {
 				$banned_stats = array('users' => array(), 'count' => 0);
 				update_option('banned_stats', $banned_stats);
-				$text = '<font color="green">'.__('All IP Ban Stats And Total Ban Stat Reseted', 'wp-ban').'</font>';
+				$text = '<p style="color: green;">'.__('All IP Ban Stats And Total Ban Stat Reseted', 'wp-ban').'</p>';
 			} else {
 				$banned_stats = get_option('banned_stats');
 				$delete_ips = (array) $_POST['delete_ips'];
@@ -131,7 +131,7 @@ if(!empty($_POST['do'])) {
 					unset($banned_stats['users'][$delete_ip]);
 				}
 				update_option('banned_stats', $banned_stats);
-				$text = '<font color="green">'.__('Selected IP Ban Stats Reseted', 'wp-ban').'</font>';
+				$text = '<p style="color: green;">'.__('Selected IP Ban Stats Reseted', 'wp-ban').'</p>';
 			}
 			break;
 	}
