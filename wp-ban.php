@@ -177,17 +177,22 @@ function banned() {
 		}
 	}
 
-	if(!$is_excluded) {
-		if(!empty($banned_ips))
-			process_ban($banned_ips, $ip);
-		if(!empty($banned_ips_range))
-			process_ban_ip_range($banned_ips_range);
-		if(!empty($banned_hosts))
-			process_ban($banned_hosts, @gethostbyaddr($ip));
-		if(!empty($banned_referers))
-			process_ban($banned_referers, $_SERVER['HTTP_REFERER']);
-		if(!empty($banned_user_agents))
-			process_ban($banned_user_agents, $_SERVER['HTTP_USER_AGENT']);
+	if( ! $is_excluded ) {
+		if( ! empty( $banned_ips ) ) {
+			process_ban( $banned_ips, $ip );
+		}
+		if( ! empty( $banned_ips_range ) ) {
+			process_ban_ip_range( $banned_ips_range );
+		}
+		if( ! empty( $banned_hosts ) ) {
+			process_ban( $banned_hosts, @gethostbyaddr( $ip ) );
+		}
+		if( ! empty( $banned_referers ) && ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+			process_ban( $banned_referers, $_SERVER['HTTP_REFERER'] );
+		}
+		if( ! empty( $banned_user_agents ) && ! empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
+			process_ban( $banned_user_agents, $_SERVER['HTTP_USER_AGENT'] );
+		}
 	}
 }
 
