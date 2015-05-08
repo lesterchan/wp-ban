@@ -16,7 +16,7 @@ if(!empty($_POST['Submit'])) {
 	$text = '';
 
 	$banned_options = array();
-	$banned_options['reverse_proxy'] = intval( $_POST['banned_option_reverse_proxy'] );
+	$banned_options['reverse_proxy'] = isset( $_POST['banned_option_reverse_proxy'] ) ? intval( $_POST['banned_option_reverse_proxy'] ) : 0;
 
 	$banned_ips_post = explode("\n", trim($_POST['banned_ips']));
 	$banned_ips_range_post = explode("\n", trim($_POST['banned_ips_range']));
@@ -36,16 +36,18 @@ if(!empty($_POST['Submit'])) {
 			}
 		}
 	}
-	if(!empty($banned_ips_range_post)) {
+	if( ! empty( $banned_ips_range_post ) ) {
 		$banned_ips_range = array();
-		foreach($banned_ips_range_post as $banned_ip_range) {
-			$range = explode('-', $banned_ip_range);
-			$range_start = trim($range[0]);
-			$range_end = trim($range[1]);
-			if($admin_login == 'admin' && (check_ip_within_range(ban_get_ip(), $range_start, $range_end))) {
-				$text .= '<p style="color: blue;">'.sprintf(__('The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban'), ban_get_ip(), $range_start, $range_end).'</p>';
-			} else {
-				$banned_ips_range[] = trim($banned_ip_range);
+		foreach( $banned_ips_range_post as $banned_ip_range ) {
+			$range = explode( '-', $banned_ip_range );
+			if( sizeof( $range ) === 2 ) {
+				$range_start = trim( $range[0] );
+				$range_end = trim( $range[1] );
+				if( $admin_login === 'admin' && ( check_ip_within_range( ban_get_ip(), $range_start, $range_end ) ) ) {
+					$text .= '<p style="color: blue;">'.sprintf( __( 'The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban' ), ban_get_ip(), $range_start, $range_end ).'</p>';
+				} else {
+					$banned_ips_range[] = trim( $banned_ip_range );
+				}
 			}
 		}
 	}
