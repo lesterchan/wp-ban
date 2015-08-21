@@ -2,7 +2,7 @@
 Contributors: GamerZ  
 Donate link: http://lesterchan.net/site/donation/  
 Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
-Requires at least: 2.8  
+Requires at least: 4.3   
 Tested up to: 4.3  
 Stable tag: 1.66  
 
