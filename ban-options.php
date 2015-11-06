@@ -290,7 +290,7 @@ $banned_options = get_option( 'banned_options' );
 					<?php _e( 'I am using a reverse proxy.', 'wp-ban' ); ?>
 				</label>
 				<p>
-					<?php _e( 'If you\'re not sure, leave this uncheck. Ticking this box when you don\'t have a reverse proxy will make it easy to bypass the IP ban.', 'wp-ban' ); ?>
+					<?php _e( 'If you\'re not sure, leave this unchecked. Ticking this box when you don\'t have a reverse proxy will make it easy to bypass the IP ban.', 'wp-ban' ); ?>
 				</p>
 			</td>
 		</tr>
