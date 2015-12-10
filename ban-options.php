@@ -197,7 +197,7 @@ $banned_options = get_option( 'banned_options' );
         var default_template;
         switch(template) {
             case "message":
-                default_template = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" <?php echo str_replace('"', '\"', get_language_attributes()); ?>>\n<head>\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=<?php echo get_option('blog_charset'); ?>\" />\n<title>%SITE_NAME% - %SITE_URL%</title>\n</head>\n<body>\n<div id=\"wp-ban-container\">\n<p style=\"text-align: center; font-weight: bold;\"><?php _e('You Are Banned.', 'wp-ban'); ?></p>\n</div>\n</body>\n</html>";
+                default_template = "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%SITE_NAME% - %SITE_URL%</title>\n</head>\n<body>\n<div id=\"wp-ban-container\">\n<p style=\"text-align: center; font-weight: bold;\"><?php _e('You Are Banned.', 'wp-ban'); ?></p>\n</div>\n</body>\n</html>";
                 break;
         }
         jQuery("#banned_template_" + template).val(default_template);

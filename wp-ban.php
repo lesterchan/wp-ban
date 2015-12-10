@@ -3,7 +3,7 @@
 Plugin Name: WP-Ban
 Plugin URI: http://lesterchan.net/portfolio/programming/php/
 Description: Ban users by IP, IP Range, host name, user agent and referer url from visiting your WordPress's blog. It will display a custom ban message when the banned IP, IP range, host name, user agent or referer url tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recordered on how many times they attemp to visit your blog. It allows wildcard matching too.
-Version: 1.67
+Version: 1.68
 Author: Lester 'GaMerZ' Chan
 Author URI: http://lesterchan.net
 Text Domain: wp-ban
@@ -32,7 +32,7 @@ Text Domain: wp-ban
 ### Create Text Domain For Translation
 add_action( 'plugins_loaded', 'ban_textdomain' );
 function ban_textdomain() {
-    load_plugin_textdomain( 'wp-ban', false, dirname( plugin_basename( __FILE__ ) ) );
+    load_plugin_textdomain( 'wp-ban' );
 }
 
 
@@ -279,10 +279,10 @@ function ban_activate() {
     add_option('banned_ips', array());
     add_option('banned_hosts',array());
     add_option('banned_stats', array('users' => array(), 'count' => 0));
-    add_option('banned_message', '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'."\n".
-    '<html xmlns="http://www.w3.org/1999/xhtml" '.get_language_attributes().'>'."\n".
+    add_option('banned_message', '<!DOCTYPE html>'."\n".
+    '<html>'."\n".
     '<head>'."\n".
-    '<meta http-equiv="Content-Type" content="text/html; charset='.get_option('blog_charset').'" />'."\n".
+    '<meta charset="utf-8">'."\n".
     '<title>%SITE_NAME% - %SITE_URL%</title>'."\n".
     '</head>'."\n".
     '<body>'."\n".
