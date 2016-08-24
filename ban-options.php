@@ -26,8 +26,8 @@ if( ! empty( $_POST['Submit'] ) ) {
     $banned_exclude_ips_post    = ! empty( $_POST['banned_exclude_ips'] )       ? explode( "\n", trim( $_POST['banned_exclude_ips'] ) ) : array();
     $banned_message             = ! empty( $_POST['banned_template_message'] )  ? trim( $_POST['banned_template_message'] ) : '';
 
+    $banned_ips = array();
     if(!empty($banned_ips_post)) {
-        $banned_ips = array();
         foreach($banned_ips_post as $banned_ip) {
             if($admin_login == 'admin' && ($banned_ip == ban_get_ip() || is_admin_ip($banned_ip))) {
                 $text .= '<p style="color: blue;">'.sprintf(__('This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'),$banned_ip).'</p>';
@@ -36,8 +36,9 @@ if( ! empty( $_POST['Submit'] ) ) {
             }
         }
     }
+
+    $banned_ips_range = array();
     if( ! empty( $banned_ips_range_post ) ) {
-        $banned_ips_range = array();
         foreach( $banned_ips_range_post as $banned_ip_range ) {
             $range = explode( '-', $banned_ip_range );
             if( sizeof( $range ) === 2 ) {
@@ -51,8 +52,9 @@ if( ! empty( $_POST['Submit'] ) ) {
             }
         }
     }
+
+    $banned_hosts = array();
     if(!empty($banned_hosts_post)) {
-        $banned_hosts = array();
         foreach($banned_hosts_post as $banned_host) {
             if($admin_login == 'admin' && ($banned_host == @gethostbyaddr(ban_get_ip()) || is_admin_hostname($banned_host))) {
                 $text .= '<p style="color: blue;">'.sprintf(__('This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_host).'</p>';
@@ -61,8 +63,9 @@ if( ! empty( $_POST['Submit'] ) ) {
             }
         }
     }
+
+    $banned_referers = array();
     if(!empty($banned_referers_post)) {
-        $banned_referers = array();
         foreach($banned_referers_post as $banned_referer) {
             if(is_admin_referer($banned_referer)) {
                 $text .= '<p style="color: blue;">'.sprintf(__('This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban'), $banned_referer).'</p>';
@@ -71,8 +74,9 @@ if( ! empty( $_POST['Submit'] ) ) {
             }
         }
     }
+
+    $banned_user_agents = array();
     if(!empty($banned_user_agents_post)) {
-        $banned_user_agents = array();
         foreach($banned_user_agents_post as $banned_user_agent) {
             if(is_admin_user_agent($banned_user_agent)) {
                 $text .= '<p style="color: blue;">'.sprintf(__('This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_user_agent).'</p>';
@@ -81,8 +85,9 @@ if( ! empty( $_POST['Submit'] ) ) {
             }
         }
     }
+
+    $banned_exclude_ips = array();
     if(!empty($banned_exclude_ips_post)) {
-        $banned_exclude_ips = array();
         foreach($banned_exclude_ips_post as $banned_exclude_ip) {
             $banned_exclude_ips[] = trim($banned_exclude_ip);
         }
