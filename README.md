@@ -1,9 +1,9 @@
 # WP-Ban
 Contributors: GamerZ  
-Donate link: http://lesterchan.net/site/donation/  
+Donate link: https://lesterchan.net/site/donation/  
 Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
 Requires at least: 4.3   
-Tested up to: 4.6  
+Tested up to: 4.7  
 Stable tag: 1.69  
 
 Ban users by IP, IP Range, host name, user agent and referrer url from visiting your WordPress's blog.
@@ -28,6 +28,7 @@ It will display a custom ban message when the banned IP, IP range, host name or 
 
 ## Changelog
 ### Version 1.69
+* NEW: Bump WordPress 4.7
 * FIXED: Notices
 
 ### Version 1.68
