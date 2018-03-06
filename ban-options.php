@@ -251,7 +251,6 @@ $banned_options = get_option( 'banned_options' );
 <form method="post" action="<?php echo admin_url('admin.php?page='.plugin_basename(__FILE__)); ?>">
 <?php wp_nonce_field('wp-ban_templates'); ?>
 <div class="wrap">
-    <?php screen_icon(); ?>
     <h2><?php _e('Ban Options', 'wp-ban'); ?></h2>
     <table class="widefat">
         <thead>
