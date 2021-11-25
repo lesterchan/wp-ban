@@ -269,7 +269,7 @@ $banned_options = get_option( 'banned_options' );
         </tr>
         <tr>
             <td><?php _e('User Agent', 'wp-ban'); ?>:</td>
-            <td><strong><?php echo $_SERVER['HTTP_USER_AGENT']; ?></strong></td>
+            <td><strong><?php echo (!isset($_SERVER["HTTP_USER_AGENT"]) ? __('Unknown', 'wp-ban') : esc_html($_SERVER['HTTP_USER_AGENT'])); ?></strong></td>
         </tr>
         <tr class="alternate">
             <td><?php _e('Site URL', 'wp-ban'); ?>:</td>
