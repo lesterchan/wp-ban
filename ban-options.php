@@ -328,7 +328,7 @@ $banned_options = get_option( 'banned_options' );
         <tr>
             <td valign="top">
                 <strong><?php _e('Banned Host Names', 'wp-ban'); ?>:</strong><br />
-                <?php _e('Use <strong>*</strong> for wildcards', 'wp-ban'); ?>.<br />
+                <?php _e('Use <strong>*</strong> for wildcards.', 'wp-ban'); ?><br />
                 <?php _e('Start each entry on a new line.', 'wp-ban'); ?><br /><br />
                 <?php _e('Examples:', 'wp-ban'); ?>
                 <p style="margin: 2px 0"><strong>&raquo;</strong> <span dir="ltr">*.sg</span></p>
@@ -342,7 +342,7 @@ $banned_options = get_option( 'banned_options' );
         <tr>
             <td valign="top">
                 <strong><?php _e('Banned Referers', 'wp-ban'); ?>:</strong><br />
-                <?php _e('Use <strong>*</strong> for wildcards', 'wp-ban'); ?>.<br />
+                <?php _e('Use <strong>*</strong> for wildcards.', 'wp-ban'); ?><br />
                 <?php _e('Start each entry on a new line.', 'wp-ban'); ?><br /><br />
                 <?php _e('Examples:', 'wp-ban'); ?><br />
                 <strong>&raquo;</strong> <span dir="ltr">http://*.blogspot.com</span><br /><br />
@@ -356,7 +356,7 @@ $banned_options = get_option( 'banned_options' );
         <tr>
             <td valign="top">
                 <strong><?php _e('Banned User Agents', 'wp-ban'); ?>:</strong><br />
-                <?php _e('Use <strong>*</strong> for wildcards', 'wp-ban'); ?>.<br />
+                <?php _e('Use <strong>*</strong> for wildcards.', 'wp-ban'); ?><br />
                 <?php _e('Start each entry on a new line.', 'wp-ban'); ?><br /><br />
                 <?php _e('Examples:', 'wp-ban'); ?>
                 <p style="margin: 2px 0"><strong>&raquo;</strong> <span dir="ltr">EmailSiphon*</span></p>
