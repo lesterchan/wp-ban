@@ -3,7 +3,7 @@
 Plugin Name: WP-Ban
 Plugin URI: https://lesterchan.net/portfolio/programming/php/
 Description: Ban users by IP, IP Range, host name, user agent and referer url from visiting your WordPress's blog. It will display a custom ban message when the banned IP, IP range, host name, user agent or referer url tries to visit you blog. You can also exclude certain IPs from being banned. There will be statistics recordered on how many times they attemp to visit your blog. It allows wildcard matching too.
-Version: 1.69
+Version: 1.69.1
 Author: Lester 'GaMerZ' Chan
 Author URI: https://lesterchan.net
 Text Domain: wp-ban
@@ -11,7 +11,7 @@ Text Domain: wp-ban
 
 
 /*
-	Copyright 2016  Lester Chan  (email : lesterchan@gmail.com)
+	Copyright 2022  Lester Chan  (email : lesterchan@gmail.com)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -91,12 +91,12 @@ function preview_banned_message() {
 function print_banned_message() {
 	$banned_ip = ban_get_ip();
 	$banned_stats = get_option( 'banned_stats' );
-	if( isset( $banned_stats['count'] ) ) {
+	if ( isset( $banned_stats['count'] ) ) {
 		$banned_stats['count'] += 1;
 	} else {
 		$banned_stats['count'] = 1;
 	}
-	if( isset( $banned_stats['users'][$banned_ip] ) ) {
+	if ( isset( $banned_stats['users'][$banned_ip] ) ) {
 		$banned_stats['users'][$banned_ip] += 1;
 	} else {
 		$banned_stats['users'][$banned_ip] = 1;
@@ -121,6 +121,7 @@ function print_banned_message() {
 		),
 		stripslashes( get_option( 'banned_message' ) )
 	);
+	echo '<!DOCTYPE html>' . "\n";
 	echo $banned_message;
 	exit();
 }
@@ -156,60 +157,60 @@ function process_ban_ip_range($banned_ips_range) {
 
 
 ### Function: Banned
-add_action('init', 'banned');
+add_action( 'init', 'banned' );
 function banned() {
 	$ip = ban_get_ip();
-	if($ip == 'unknown') {
+	if ( $ip === 'unknown' ) {
 		return;
 	}
-	$banned_ips = get_option('banned_ips');
-	if(is_array($banned_ips))
-		$banned_ips = array_filter($banned_ips);
+	$banned_ips = get_option( 'banned_ips' );
+	if ( is_array( $banned_ips ) )
+		$banned_ips = array_filter( $banned_ips );
 
-	$banned_ips_range = get_option('banned_ips_range');
-	if(is_array($banned_ips_range))
-		$banned_ips_range = array_filter($banned_ips_range);
+	$banned_ips_range = get_option( 'banned_ips_range' );
+	if ( is_array( $banned_ips_range ) )
+		$banned_ips_range = array_filter( $banned_ips_range );
 
-	$banned_hosts = get_option('banned_hosts');
-	if(is_array($banned_hosts))
-		$banned_hosts = array_filter($banned_hosts);
+	$banned_hosts = get_option( 'banned_hosts' );
+	if ( is_array( $banned_hosts ) )
+		$banned_hosts = array_filter( $banned_hosts );
 
-	$banned_referers = get_option('banned_referers');
-	if(is_array($banned_referers))
-		$banned_referers = array_filter($banned_referers);
+	$banned_referers = get_option( 'banned_referers' );
+	if ( is_array( $banned_referers ) )
+		$banned_referers = array_filter( $banned_referers );
 
-	$banned_user_agents = get_option('banned_user_agents');
-	if(is_array($banned_user_agents))
-		$banned_user_agents = array_filter($banned_user_agents);
+	$banned_user_agents = get_option( 'banned_user_agents' );
+	if ( is_array( $banned_user_agents ) )
+		$banned_user_agents = array_filter( $banned_user_agents );
 
 	$banned_exclude_ips = get_option('banned_exclude_ips');
-	if(is_array($banned_exclude_ips))
-		$banned_exclude_ips = array_filter($banned_exclude_ips);
+	if ( is_array( $banned_exclude_ips ) )
+		$banned_exclude_ips = array_filter( $banned_exclude_ips );
 
 	$is_excluded = false;
-	if(!empty($banned_exclude_ips)) {
-		foreach($banned_exclude_ips as $banned_exclude_ip) {
-			if($ip == $banned_exclude_ip) {
+	if ( ! empty( $banned_exclude_ips ) ) {
+		foreach( $banned_exclude_ips as $banned_exclude_ip ) {
+			if ( $ip === $banned_exclude_ip ) {
 				$is_excluded = true;
 				break;
 			}
 		}
 	}
 
-	if( ! $is_excluded ) {
+	if ( ! $is_excluded ) {
 		if( ! empty( $banned_ips ) ) {
 			process_ban( $banned_ips, $ip );
 		}
-		if( ! empty( $banned_ips_range ) ) {
+		if ( ! empty( $banned_ips_range ) ) {
 			process_ban_ip_range( $banned_ips_range );
 		}
-		if( ! empty( $banned_hosts ) ) {
+		if ( ! empty( $banned_hosts ) ) {
 			process_ban( $banned_hosts, @gethostbyaddr( $ip ) );
 		}
-		if( ! empty( $banned_referers ) && ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+		if ( ! empty( $banned_referers ) && ! empty( $_SERVER['HTTP_REFERER'] ) ) {
 			process_ban( $banned_referers, $_SERVER['HTTP_REFERER'] );
 		}
-		if( ! empty( $banned_user_agents ) && ! empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
+		if ( ! empty( $banned_user_agents ) && ! empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
 			process_ban( $banned_user_agents, $_SERVER['HTTP_USER_AGENT'] );
 		}
 	}
@@ -299,8 +300,7 @@ function ban_activate() {
 	add_option('banned_ips', array());
 	add_option('banned_hosts',array());
 	add_option('banned_stats', array('users' => array(), 'count' => 0));
-	add_option('banned_message', '<!DOCTYPE html>'."\n".
-	'<html>'."\n".
+	add_option('banned_message', '<html>'."\n".
 	'<head>'."\n".
 	'<meta charset="utf-8">'."\n".
 	'<title>%SITE_NAME% - %SITE_URL%</title>'."\n".

@@ -9,6 +9,15 @@ $base_name = plugin_basename('wp-ban/ban-options.php');
 $base_page = 'admin.php?page='.$base_name;
 $admin_login = trim($current_user->user_login);
 
+# Allow HTML
+$allowed_tags = wp_kses_allowed_html( 'post' );
+$allowed_tags['html'] = true;
+$allowed_tags['head'] = true;
+$allowed_tags['meta'] = array(
+    'charset' => true,
+);
+$allowed_tags['body'] = true;
+
 ### Form Processing
 // Update Options
 if( ! empty( $_POST['Submit'] ) ) {
@@ -24,101 +33,101 @@ if( ! empty( $_POST['Submit'] ) ) {
     $banned_referers_post       = ! empty( $_POST['banned_referers'] )          ? explode( "\n", trim($_POST['banned_referers'] ) ) : array();
     $banned_user_agents_post    = ! empty( $_POST['banned_user_agents'] )       ? explode( "\n", trim($_POST['banned_user_agents'] ) ) : array();
     $banned_exclude_ips_post    = ! empty( $_POST['banned_exclude_ips'] )       ? explode( "\n", trim( $_POST['banned_exclude_ips'] ) ) : array();
-    $banned_message             = ! empty( $_POST['banned_template_message'] )  ? trim( $_POST['banned_template_message'] ) : '';
+    $banned_message             = ! empty( $_POST['banned_template_message'] )  ? wp_kses( trim( $_POST['banned_template_message'] ), $allowed_tags ) : '';
 
     $banned_ips = array();
-    if(!empty($banned_ips_post)) {
-        foreach($banned_ips_post as $banned_ip) {
-            if($admin_login == 'admin' && ($banned_ip == ban_get_ip() || is_admin_ip($banned_ip))) {
-                $text .= '<p style="color: blue;">'.sprintf(__('This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'),$banned_ip).'</p>';
+    if ( ! empty( $banned_ips_post ) ) {
+        foreach ( $banned_ips_post as $banned_ip ) {
+            if( $admin_login === 'admin' && ( $banned_ip === ban_get_ip() || is_admin_ip( $banned_ip ) ) ) {
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_ip ) . '</p>';
             } else {
-                $banned_ips[] = trim($banned_ip);
+                $banned_ips[] = esc_html( trim( $banned_ip ) );
             }
         }
     }
 
     $banned_ips_range = array();
-    if( ! empty( $banned_ips_range_post ) ) {
+    if ( ! empty( $banned_ips_range_post ) ) {
         foreach( $banned_ips_range_post as $banned_ip_range ) {
             $range = explode( '-', $banned_ip_range );
-            if( sizeof( $range ) === 2 ) {
+            if ( sizeof( $range ) === 2 ) {
                 $range_start = trim( $range[0] );
                 $range_end = trim( $range[1] );
-                if( $admin_login === 'admin' && ( check_ip_within_range( ban_get_ip(), $range_start, $range_end ) ) ) {
-                    $text .= '<p style="color: blue;">'.sprintf( __( 'The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban' ), ban_get_ip(), $range_start, $range_end ).'</p>';
+                if ( $admin_login === 'admin' && ( check_ip_within_range( ban_get_ip(), $range_start, $range_end ) ) ) {
+                    $text .= '<p style="color: blue;">' . sprintf( __( 'The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban' ), ban_get_ip(), $range_start, $range_end ) . '</p>';
                 } else {
-                    $banned_ips_range[] = trim( $banned_ip_range );
+                    $banned_ips_range[] = esc_html( trim( $banned_ip_range ) );
                 }
             }
         }
     }
 
     $banned_hosts = array();
-    if(!empty($banned_hosts_post)) {
-        foreach($banned_hosts_post as $banned_host) {
-            if($admin_login == 'admin' && ($banned_host == @gethostbyaddr(ban_get_ip()) || is_admin_hostname($banned_host))) {
-                $text .= '<p style="color: blue;">'.sprintf(__('This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_host).'</p>';
+    if ( ! empty( $banned_hosts_post ) ) {
+        foreach ( $banned_hosts_post as $banned_host ) {
+            if ( $admin_login === 'admin' && ( $banned_host === @gethostbyaddr( ban_get_ip() ) || is_admin_hostname( $banned_host ) ) ) {
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_host ) . '</p>';
             } else {
-                $banned_hosts[] = trim($banned_host);
+                $banned_hosts[] = esc_html( trim( $banned_host ) );
             }
         }
     }
 
     $banned_referers = array();
-    if(!empty($banned_referers_post)) {
-        foreach($banned_referers_post as $banned_referer) {
-            if(is_admin_referer($banned_referer)) {
-                $text .= '<p style="color: blue;">'.sprintf(__('This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban'), $banned_referer).'</p>';
+    if ( ! empty( $banned_referers_post ) ) {
+        foreach ( $banned_referers_post as $banned_referer ) {
+            if ( is_admin_referer( $banned_referer ) ) {
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban' ), $banned_referer ) . '</p>';
             } else {
-                $banned_referers[] = trim($banned_referer);
+                $banned_referers[] = esc_html( trim( $banned_referer ) );
             }
         }
     }
 
     $banned_user_agents = array();
-    if(!empty($banned_user_agents_post)) {
-        foreach($banned_user_agents_post as $banned_user_agent) {
-            if(is_admin_user_agent($banned_user_agent)) {
-                $text .= '<p style="color: blue;">'.sprintf(__('This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban'), $banned_user_agent).'</p>';
+    if ( ! empty( $banned_user_agents_post ) ) {
+        foreach ( $banned_user_agents_post as $banned_user_agent ) {
+            if ( is_admin_user_agent( $banned_user_agent ) ) {
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_user_agent ) . '</p>';
             } else {
-                $banned_user_agents[] = trim($banned_user_agent);
+                $banned_user_agents[] = esc_html( trim( $banned_user_agent ) );
             }
         }
     }
 
     $banned_exclude_ips = array();
-    if(!empty($banned_exclude_ips_post)) {
-        foreach($banned_exclude_ips_post as $banned_exclude_ip) {
-            $banned_exclude_ips[] = trim($banned_exclude_ip);
+    if ( ! empty( $banned_exclude_ips_post ) ) {
+        foreach ( $banned_exclude_ips_post as $banned_exclude_ip ) {
+            $banned_exclude_ips[] = esc_html( trim( $banned_exclude_ip ) );
         }
     }
     $update_ban_queries = array();
     $update_ban_queries[] = update_option( 'banned_options', $banned_options );
-    $update_ban_queries[] = update_option('banned_ips', $banned_ips);
-    $update_ban_queries[] = update_option('banned_ips_range', $banned_ips_range);
-    $update_ban_queries[] = update_option('banned_hosts', $banned_hosts);
-    $update_ban_queries[] = update_option('banned_referers', $banned_referers);
-    $update_ban_queries[] = update_option('banned_user_agents', $banned_user_agents);
-    $update_ban_queries[] = update_option('banned_exclude_ips', $banned_exclude_ips);
-    $update_ban_queries[] = update_option('banned_message', $banned_message);
+    $update_ban_queries[] = update_option( 'banned_ips', $banned_ips );
+    $update_ban_queries[] = update_option( 'banned_ips_range', $banned_ips_range );
+    $update_ban_queries[] = update_option( 'banned_hosts', $banned_hosts );
+    $update_ban_queries[] = update_option( 'banned_referers', $banned_referers );
+    $update_ban_queries[] = update_option( 'banned_user_agents', $banned_user_agents );
+    $update_ban_queries[] = update_option( 'banned_exclude_ips', $banned_exclude_ips );
+    $update_ban_queries[] = update_option( 'banned_message', $banned_message );
     $update_ban_text = array();
     $update_ban_text[] = __( 'Banned Options', 'wp-ban' );
-    $update_ban_text[] = __('Banned IPs', 'wp-ban');
-    $update_ban_text[] = __('Banned IP Range', 'wp-ban');
-    $update_ban_text[] = __('Banned Host Names', 'wp-ban');
-    $update_ban_text[] = __('Banned Referers', 'wp-ban');
-    $update_ban_text[] = __('Banned User Agents', 'wp-ban');
-    $update_ban_text[] = __('Banned Excluded IPs', 'wp-ban');
-    $update_ban_text[] = __('Banned Message', 'wp-ban');
-    $i=0;
-    foreach($update_ban_queries as $update_ban_query) {
-        if($update_ban_query) {
-            $text .= '<p style="color: green;">'.$update_ban_text[$i].' '.__('Updated', 'wp-ban').'</p>';
+    $update_ban_text[] = __( 'Banned IPs', 'wp-ban');
+    $update_ban_text[] = __( 'Banned IP Range', 'wp-ban');
+    $update_ban_text[] = __( 'Banned Host Names', 'wp-ban');
+    $update_ban_text[] = __( 'Banned Referers', 'wp-ban');
+    $update_ban_text[] = __( 'Banned User Agents', 'wp-ban');
+    $update_ban_text[] = __( 'Banned Excluded IPs', 'wp-ban');
+    $update_ban_text[] = __( 'Banned Message', 'wp-ban');
+    $i = 0;
+    foreach ( $update_ban_queries as $update_ban_query ) {
+        if ( $update_ban_query ) {
+            $text .= '<p style="color: green;">' . $update_ban_text[$i] . ' ' . __( 'Updated', 'wp-ban' ) . '</p>';
         }
         $i++;
     }
-    if(empty($text)) {
-        $text = '<p style="color: red;">'.__('No Ban Option Updated', 'wp-ban').'</p>';
+    if ( empty( $text ) ) {
+        $text = '<p style="color: red;">' . __( 'No Ban Option Updated', 'wp-ban' ) . '</p>';
     }
 }
 if( ! empty( $_POST['do'] ) ) {
@@ -202,7 +211,7 @@ $banned_options = get_option( 'banned_options' );
         var default_template;
         switch(template) {
             case "message":
-                default_template = "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%SITE_NAME% - %SITE_URL%</title>\n</head>\n<body>\n<div id=\"wp-ban-container\">\n<p style=\"text-align: center; font-weight: bold;\"><?php _e('You Are Banned.', 'wp-ban'); ?></p>\n</div>\n</body>\n</html>";
+                default_template = "<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%SITE_NAME% - %SITE_URL%</title>\n</head>\n<body>\n<div id=\"wp-ban-container\">\n<p style=\"text-align: center; font-weight: bold;\"><?php _e('You Are Banned.', 'wp-ban'); ?></p>\n</div>\n</body>\n</html>";
                 break;
         }
         jQuery("#banned_template_" + template).val(default_template);
@@ -276,7 +285,7 @@ $banned_options = get_option( 'banned_options' );
             <td><strong><?php echo get_option('home'); ?></strong></td>
         </tr>
         <tr>
-            <td valign="top" colspan="2" align="center">
+            <td valign="top" colspan="2" style="text-align: center;">
                 <?php _e('Please <strong>DO NOT</strong> ban yourself.', 'wp-ban'); ?>
             </td>
         </tr>
