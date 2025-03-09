@@ -2,8 +2,9 @@
 /*
  * Uninstall plugin
  */
-if ( !defined( 'WP_UNINSTALL_PLUGIN' ) )
-	exit ();
+if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+	exit;
+}
 
 $option_names = array(
 	'banned_ips'

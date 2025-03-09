@@ -1,7 +1,11 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 ### Check Whether User Can Manage Ban Options
-if(!current_user_can('manage_options')) {
-    die('Access Denied');
+if ( ! current_user_can( 'manage_options' ) ) {
+    die( 'Access Denied' );
 }
 
 ### Variables

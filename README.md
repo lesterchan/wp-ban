@@ -3,8 +3,8 @@ Contributors: GamerZ
 Donate link: https://lesterchan.net/site/donation/  
 Tags: banned, ban, deny, denied, permission, ip, hostname, host, spam, bots, bot, exclude, referrer, url, referral, range  
 Requires at least: 4.3   
-Tested up to: 6.3  
-Stable tag: 1.69.1  
+Tested up to: 6.5  
+Stable tag: 1.69.2  
 
 Ban users by IP, IP Range, host name, user agent and referrer url from visiting your WordPress's blog.
 
@@ -24,6 +24,9 @@ It will display a custom ban message when the banned IP, IP range, host name or 
 * I spent most of my free time creating, updating, maintaining and supporting these plugins, if you really love my plugins and could spare me a couple of bucks, I will really appreciate it. If not feel free to use it without any obligations.
 
 ## Changelog
+### Version 1.69.2
+* NEW: Don't allow to access ban-options.php directly
+
 ### Version 1.69.1
 * NEW: Fixed XSS
 
