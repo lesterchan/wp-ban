@@ -47,43 +47,80 @@ function ban_menu() {
 function ban_get_ip() {
 	$banned_options = get_option( 'banned_options' );
 
-	if( intval( $banned_options['reverse_proxy'] ) === 1 ) {
-		foreach ( array( 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR' ) as $key ) {
-			if ( array_key_exists( $key, $_SERVER ) === true ) {
-				foreach ( explode( ',', $_SERVER[$key] ) as $ip ) {
-					$ip = trim( $ip );
-					if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ) {
-						return esc_attr( $ip );
-					}
+	// The row predates 1.64 on old installs, and an upgrade does not fire the
+	// activation hook that would create it.
+	$reverse_proxy = is_array( $banned_options ) && isset( $banned_options['reverse_proxy'] )
+		&& intval( $banned_options['reverse_proxy'] ) === 1;
+
+	// REMOTE_ADDR is the only address the visitor cannot choose, so it is the
+	// baseline. esc_attr() used to stand in for validation here; it is an
+	// output escaper, not a sanitiser, and it let an unvalidated value through.
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? ban_valid_ip( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+
+	if ( $reverse_proxy ) {
+		foreach ( array( 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED' ) as $key ) {
+			if ( empty( $_SERVER[ $key ] ) ) {
+				continue;
+			}
+
+			// X-Forwarded-For is a chain -- "client, proxy1, proxy2" -- and
+			// private/reserved entries are the hops, not the visitor.
+			foreach ( explode( ',', wp_unslash( $_SERVER[ $key ] ) ) as $candidate ) {
+				$candidate = trim( $candidate );
+
+				if ( filter_var( $candidate, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) !== false ) {
+					return $candidate;
 				}
 			}
 		}
-	} else if( !empty( $_SERVER['REMOTE_ADDR'] ) ) {
-		$ip = $_SERVER['REMOTE_ADDR'];
-		if( strpos( $ip, ',' ) !== false ) {
-			$ip = explode( ',', $ip );
-			$ip = $ip[0];
-		}
-		return esc_attr( $ip );
 	}
 
-	return '';
+	// Falling through to REMOTE_ADDR matters: with the box ticked and no proxy
+	// header present this used to return '', and every ban stopped applying.
+	return $ip;
+}
+
+
+### Function: Validate An IP Address, Or Return An Empty String
+function ban_valid_ip( $ip ) {
+	$ip = filter_var( trim( (string) $ip ), FILTER_VALIDATE_IP );
+
+	return ( $ip === false ) ? '' : $ip;
 }
 
 
 ### Function: Preview Banned Message
 add_action('wp_ajax_ban-admin', 'preview_banned_message');
 function preview_banned_message() {
+	// wp_ajax_* fires for every authenticated role, subscribers included, so
+	// the hook alone is not an authorisation check.
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( -1, 403 );
+	}
+
 	$banned_stats = get_option('banned_stats');
+	$banned_ip = ban_get_ip();
+	$user_attempts = isset( $banned_stats['users'][ $banned_ip ] ) ? intval( $banned_stats['users'][ $banned_ip ] ) : 0;
+	$total_attempts = isset( $banned_stats['count'] ) ? intval( $banned_stats['count'] ) : 0;
 	$banned_message = stripslashes(get_option('banned_message'));
 	$banned_message = str_replace("%SITE_NAME%", get_option('blogname'), $banned_message);
 	$banned_message = str_replace("%SITE_URL%",  get_option('siteurl'), $banned_message);
-	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($banned_stats['users'][ban_get_ip()]), $banned_message);
-	$banned_message = str_replace("%USER_IP%", ban_get_ip(), $banned_message);
-	$banned_message = str_replace("%USER_HOSTNAME%",  @gethostbyaddr(ban_get_ip()), $banned_message);
-	$banned_message = str_replace("%TOTAL_ATTEMPTS_COUNT%", number_format_i18n($banned_stats['count']), $banned_message);
+	$banned_message = str_replace("%USER_ATTEMPTS_COUNT%",  number_format_i18n($user_attempts), $banned_message);
+	$banned_message = str_replace("%USER_IP%", $banned_ip, $banned_message);
+	$banned_message = str_replace("%USER_HOSTNAME%",  ban_gethostbyaddr($banned_ip), $banned_message);
+	$banned_message = str_replace("%TOTAL_ATTEMPTS_COUNT%", number_format_i18n($total_attempts), $banned_message);
 	echo $banned_message;
 	exit();
+}
+
+
+### Function: Reverse DNS Lookup, Without Warning On An Empty Address
+function ban_gethostbyaddr( $ip ) {
+	if ( ban_valid_ip( $ip ) === '' ) {
+		return '';
+	}
+
+	return gethostbyaddr( $ip );
 }
 
 
@@ -116,11 +153,27 @@ function print_banned_message() {
 			get_option( 'siteurl' ),
 			number_format_i18n( $banned_stats['users'][$banned_ip] ),
 			$banned_ip,
-			@gethostbyaddr( $banned_ip ),
+			ban_gethostbyaddr( $banned_ip ),
 			number_format_i18n( $banned_stats['count'] )
 		),
 		stripslashes( get_option( 'banned_message' ) )
 	);
+
+	/**
+	 * Filters the HTTP status the ban page is served with.
+	 *
+	 * Until 2.0.0 this was 200 OK, so search engines and caches treated the ban
+	 * page as the site's real content. Return 200 to restore that.
+	 *
+	 * @param int $status HTTP status code.
+	 */
+	$status = (int) apply_filters( 'wp_ban_status_code', 403 );
+
+	if ( ! headers_sent() ) {
+		status_header( $status );
+		nocache_headers();
+	}
+
 	echo '<!DOCTYPE html>' . "\n";
 	echo $banned_message;
 	exit();
@@ -145,6 +198,11 @@ function process_ban_ip_range($banned_ips_range) {
 	if(!empty($banned_ips_range)) {
 		foreach($banned_ips_range as $banned_ip_range) {
 			$range = explode('-', $banned_ip_range);
+			// A stored entry need not have a separator; the save path has
+			// required one since 1.11 but nothing ever cleaned older rows.
+			if ( count( $range ) !== 2 ) {
+				continue;
+			}
 			$range_start = trim($range[0]);
 			$range_end = trim($range[1]);
 			if(check_ip_within_range(ban_get_ip(), $range_start, $range_end)) {
@@ -205,13 +263,13 @@ function banned() {
 			process_ban_ip_range( $banned_ips_range );
 		}
 		if ( ! empty( $banned_hosts ) ) {
-			process_ban( $banned_hosts, @gethostbyaddr( $ip ) );
+			process_ban( $banned_hosts, ban_gethostbyaddr( $ip ) );
 		}
 		if ( ! empty( $banned_referers ) && ! empty( $_SERVER['HTTP_REFERER'] ) ) {
-			process_ban( $banned_referers, $_SERVER['HTTP_REFERER'] );
+			process_ban( $banned_referers, wp_unslash( $_SERVER['HTTP_REFERER'] ) );
 		}
 		if ( ! empty( $banned_user_agents ) && ! empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
-			process_ban( $banned_user_agents, $_SERVER['HTTP_USER_AGENT'] );
+			process_ban( $banned_user_agents, wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) );
 		}
 	}
 }
@@ -225,25 +283,52 @@ function is_admin_ip($check) {
 
 ### Function: Check Whether IP Within A Given IP Range
 function check_ip_within_range($ip, $range_start, $range_end) {
-	$range_start = ip2long($range_start);
-	$range_end = ip2long($range_end);
-	$ip = ip2long($ip);
-	if($ip !== false && $ip >= $range_start && $ip <= $range_end) {
-		return true;
+	/*
+	 * ip2long() returned false for an unparseable bound, and PHP compares an
+	 * int against a bool by casting the int to true -- so `$ip >= false` was
+	 * always true and a range with a junk lower bound banned every address
+	 * below its upper bound. Validate first, and bail on anything malformed.
+	 *
+	 * inet_pton() also gets IPv6 right, which ip2long() could not see at all:
+	 * an IPv6 range silently matched nobody.
+	 */
+	$ip          = ban_valid_ip( $ip );
+	$range_start = ban_valid_ip( $range_start );
+	$range_end   = ban_valid_ip( $range_end );
+
+	if ( $ip === '' || $range_start === '' || $range_end === '' ) {
+		return false;
 	}
-	return false;
+
+	$ip          = inet_pton( $ip );
+	$range_start = inet_pton( $range_start );
+	$range_end   = inet_pton( $range_end );
+
+	// Packed addresses are 4 bytes for IPv4 and 16 for IPv6; comparing across
+	// families is meaningless, so a mixed range matches nothing.
+	if ( strlen( $ip ) !== strlen( $range_start ) || strlen( $ip ) !== strlen( $range_end ) ) {
+		return false;
+	}
+
+	// inet_pton() packs big-endian, so a byte-wise compare is an unsigned
+	// numeric compare -- and unlike ip2long() it is correct above 127.x on
+	// 32-bit builds too.
+	return ( strcmp( $ip, $range_start ) >= 0 && strcmp( $ip, $range_end ) <= 0 );
 }
 
 
 ### Function: Check Whether Or Not The Hostname Belongs To Admin
 function is_admin_hostname($check) {
-	return preg_match_wildcard($check, @gethostbyaddr(ban_get_ip()));
+	return preg_match_wildcard($check, ban_gethostbyaddr(ban_get_ip()));
 }
 
 
 ### Function: Check Whether Or Not The Referer Belongs To This Site
 function is_admin_referer($check) {
-	$url_patterns = array(get_option('siteurl'), get_option('home'), get_option('siteurl').'/', get_option('home').'/', get_option('siteurl').'/ ', get_option('home').'/ ', $_SERVER['HTTP_REFERER']);
+	// A request need not carry a Referer, and passing null to preg_match() is
+	// deprecated as of PHP 8.1.
+	$referer = isset( $_SERVER['HTTP_REFERER'] ) ? wp_unslash( $_SERVER['HTTP_REFERER'] ) : '';
+	$url_patterns = array(get_option('siteurl'), get_option('home'), get_option('siteurl').'/', get_option('home').'/', get_option('siteurl').'/ ', get_option('home').'/ ', $referer);
 	foreach($url_patterns as $url) {
 		if(preg_match_wildcard($check, $url)) {
 			return true;
@@ -255,7 +340,8 @@ function is_admin_referer($check) {
 
 ### Function: Check Whether Or Not The User Agent Is Used by Admin
 function is_admin_user_agent($check) {
-	return preg_match_wildcard($check, $_SERVER['HTTP_USER_AGENT']);
+	$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) : '';
+	return preg_match_wildcard($check, $user_agent);
 }
 
 
@@ -263,7 +349,7 @@ function is_admin_user_agent($check) {
 function preg_match_wildcard($regex, $subject) {
 	$regex = preg_quote($regex, '#');
 	$regex = str_replace('\*', '.*', $regex);
-	if(preg_match("#^$regex$#", $subject)) {
+	if(preg_match("#^$regex$#", (string) $subject)) {
 		return true;
 	} else {
 		return false;
@@ -277,18 +363,22 @@ function ban_activation( $network_wide )
 {
 	if ( is_multisite() && $network_wide )
 	{
-		$ms_sites = wp_get_sites();
+		/*
+		 * wp_get_sites() was removed in WordPress 5.1, so network activation
+		 * fatalled rather than merely skipping sites. 'number' => 0 lifts
+		 * WP_Site_Query's default cap of 100, which would otherwise leave every
+		 * site past the hundredth unactivated while reporting success.
+		 */
+		$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
 
-		if( 0 < sizeof( $ms_sites ) )
+		foreach ( $site_ids as $site_id )
 		{
-			foreach ( $ms_sites as $ms_site )
-			{
-				switch_to_blog( $ms_site['blog_id'] );
-				ban_activate();
-			}
+			// switch_to_blog() pushes onto a stack, so the restore belongs
+			// inside the loop -- restoring once at the end unwinds it by one.
+			switch_to_blog( (int) $site_id );
+			ban_activate();
+			restore_current_blog();
 		}
-
-		restore_current_blog();
 	}
 	else
 	{

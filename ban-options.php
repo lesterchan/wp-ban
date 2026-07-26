@@ -11,7 +11,9 @@ if ( ! current_user_can( 'manage_options' ) ) {
 ### Variables
 $base_name = plugin_basename('wp-ban/ban-options.php');
 $base_page = 'admin.php?page='.$base_name;
-$admin_login = trim($current_user->user_login);
+// $current_user is only populated once the user is resolved; on some requests
+// it is null, and reading ->user_login off it warns on PHP 8.
+$admin_login = trim( (string) wp_get_current_user()->user_login );
 
 # Allow HTML
 $allowed_tags = wp_kses_allowed_html( 'post' );
@@ -43,7 +45,7 @@ if( ! empty( $_POST['Submit'] ) ) {
     if ( ! empty( $banned_ips_post ) ) {
         foreach ( $banned_ips_post as $banned_ip ) {
             if( $admin_login === 'admin' && ( $banned_ip === ban_get_ip() || is_admin_ip( $banned_ip ) ) ) {
-                $text .= '<p style="color: blue;">' . sprintf( __( 'This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_ip ) . '</p>';
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This IP \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), esc_html( $banned_ip ) ) . '</p>';
             } else {
                 $banned_ips[] = esc_html( trim( $banned_ip ) );
             }
@@ -58,7 +60,7 @@ if( ! empty( $_POST['Submit'] ) ) {
                 $range_start = trim( $range[0] );
                 $range_end = trim( $range[1] );
                 if ( $admin_login === 'admin' && ( check_ip_within_range( ban_get_ip(), $range_start, $range_end ) ) ) {
-                    $text .= '<p style="color: blue;">' . sprintf( __( 'The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban' ), ban_get_ip(), $range_start, $range_end ) . '</p>';
+                    $text .= '<p style="color: blue;">' . sprintf( __( 'The Admin\'s IP \'%s\' Fall Within This Range (%s - %s) And Will Not Be Added To Ban List', 'wp-ban' ), esc_html( ban_get_ip() ), esc_html( $range_start ), esc_html( $range_end ) ) . '</p>';
                 } else {
                     $banned_ips_range[] = esc_html( trim( $banned_ip_range ) );
                 }
@@ -69,8 +71,8 @@ if( ! empty( $_POST['Submit'] ) ) {
     $banned_hosts = array();
     if ( ! empty( $banned_hosts_post ) ) {
         foreach ( $banned_hosts_post as $banned_host ) {
-            if ( $admin_login === 'admin' && ( $banned_host === @gethostbyaddr( ban_get_ip() ) || is_admin_hostname( $banned_host ) ) ) {
-                $text .= '<p style="color: blue;">' . sprintf( __( 'This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_host ) . '</p>';
+            if ( $admin_login === 'admin' && ( $banned_host === ban_gethostbyaddr( ban_get_ip() ) || is_admin_hostname( $banned_host ) ) ) {
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This Hostname \'%s\' Belongs To The Admin And Will Not Be Added To Ban List', 'wp-ban' ), esc_html( $banned_host ) ) . '</p>';
             } else {
                 $banned_hosts[] = esc_html( trim( $banned_host ) );
             }
@@ -81,7 +83,7 @@ if( ! empty( $_POST['Submit'] ) ) {
     if ( ! empty( $banned_referers_post ) ) {
         foreach ( $banned_referers_post as $banned_referer ) {
             if ( is_admin_referer( $banned_referer ) ) {
-                $text .= '<p style="color: blue;">' . sprintf( __( 'This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban' ), $banned_referer ) . '</p>';
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This Referer \'%s\' Belongs To This Site And Will Not Be Added To Ban List', 'wp-ban' ), esc_html( $banned_referer ) ) . '</p>';
             } else {
                 $banned_referers[] = esc_html( trim( $banned_referer ) );
             }
@@ -92,7 +94,7 @@ if( ! empty( $_POST['Submit'] ) ) {
     if ( ! empty( $banned_user_agents_post ) ) {
         foreach ( $banned_user_agents_post as $banned_user_agent ) {
             if ( is_admin_user_agent( $banned_user_agent ) ) {
-                $text .= '<p style="color: blue;">' . sprintf( __( 'This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban' ), $banned_user_agent ) . '</p>';
+                $text .= '<p style="color: blue;">' . sprintf( __( 'This User Agent \'%s\' Is Used By The Current Admin And Will Not Be Added To Ban List', 'wp-ban' ), esc_html( $banned_user_agent ) ) . '</p>';
             } else {
                 $banned_user_agents[] = esc_html( trim( $banned_user_agent ) );
             }
@@ -146,7 +148,7 @@ if( ! empty( $_POST['do'] ) ) {
                 $text = '<p style="color: green;">'.__('All IP Ban Stats And Total Ban Stat Reseted', 'wp-ban').'</p>';
             } else {
                 $banned_stats = get_option('banned_stats');
-                $delete_ips = (array) $_POST['delete_ips'];
+                $delete_ips = isset( $_POST['delete_ips'] ) ? (array) wp_unslash( $_POST['delete_ips'] ) : array();
                 foreach($delete_ips as $delete_ip) {
                     unset($banned_stats['users'][$delete_ip]);
                 }
@@ -206,7 +208,16 @@ $banned_referers_display = trim($banned_referers_display);
 $banned_user_agents_display = trim($banned_user_agents_display);
 $banned_exclude_ips_display = trim($banned_exclude_ips_display);
 $banned_stats = get_option( 'banned_stats' );
+if ( ! is_array( $banned_stats ) ) {
+    $banned_stats = array();
+}
+$banned_stats['users'] = isset( $banned_stats['users'] ) && is_array( $banned_stats['users'] ) ? $banned_stats['users'] : array();
+$banned_stats['count'] = isset( $banned_stats['count'] ) ? intval( $banned_stats['count'] ) : 0;
 $banned_options = get_option( 'banned_options' );
+if ( ! is_array( $banned_options ) ) {
+    $banned_options = array();
+}
+$banned_options['reverse_proxy'] = isset( $banned_options['reverse_proxy'] ) ? intval( $banned_options['reverse_proxy'] ) : 0;
 ?>
 <script type="text/javascript">
 /* <![CDATA[*/
@@ -221,7 +232,7 @@ $banned_options = get_option( 'banned_options' );
         jQuery("#banned_template_" + template).val(default_template);
     }
     function toggle_checkbox() {
-        for(i = 0; i < <?php echo sizeof($banned_stats['users']); ?>; i++) {
+        for(i = 0; i < <?php echo intval( count( $banned_stats['users'] ) ); ?>; i++) {
             if(checked == 0) {
                 jQuery("#ban-" + i).attr("checked", "checked");
             } else {
@@ -274,11 +285,11 @@ $banned_options = get_option( 'banned_options' );
         </thead>
         <tr>
             <td><?php _e('IP', 'wp-ban'); ?>:</td>
-            <td><strong><?php echo ban_get_ip(); ?></strong></td>
+            <td><strong><?php echo esc_html( ban_get_ip() ); ?></strong></td>
         </tr>
         <tr class="alternate">
             <td><?php _e('Host Name', 'wp-ban'); ?>:</td>
-            <td><strong><?php echo @gethostbyaddr(ban_get_ip()); ?></strong></td>
+            <td><strong><?php echo esc_html( ban_gethostbyaddr( ban_get_ip() ) ); ?></strong></td>
         </tr>
         <tr>
             <td><?php _e('User Agent', 'wp-ban'); ?>:</td>
@@ -286,7 +297,7 @@ $banned_options = get_option( 'banned_options' );
         </tr>
         <tr class="alternate">
             <td><?php _e('Site URL', 'wp-ban'); ?>:</td>
-            <td><strong><?php echo get_option('home'); ?></strong></td>
+            <td><strong><?php echo esc_url( get_option('home') ); ?></strong></td>
         </tr>
         <tr>
             <td valign="top" colspan="2" style="text-align: center;">
@@ -322,7 +333,7 @@ $banned_options = get_option( 'banned_options' );
                 <p style="margin: 2px 0"><strong>&raquo;</strong> <span dir="ltr">192.168.*.*</span></p>
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_ips" dir="ltr"><?php echo $banned_ips_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_ips" dir="ltr"><?php echo esc_textarea( $banned_ips_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -335,7 +346,7 @@ $banned_options = get_option( 'banned_options' );
                 <strong>&raquo;</strong> <?php _e('No Wildcards Allowed.', 'wp-ban'); ?><br />
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_ips_range" dir="ltr"><?php echo $banned_ips_range_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_ips_range" dir="ltr"><?php echo esc_textarea( $banned_ips_range_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -349,7 +360,7 @@ $banned_options = get_option( 'banned_options' );
                 <p style="margin: 2px 0"><strong>&raquo;</strong> <span dir="ltr">*.th</span></p>
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_hosts" dir="ltr"><?php echo $banned_hosts_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_hosts" dir="ltr"><?php echo esc_textarea( $banned_hosts_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -363,7 +374,7 @@ $banned_options = get_option( 'banned_options' );
                 <strong>&raquo;</strong> <?php _e('There are ways to bypass this method of banning.', 'wp-ban'); ?>
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_referers" dir="ltr"><?php echo $banned_referers_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_referers" dir="ltr"><?php echo esc_textarea( $banned_referers_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -379,7 +390,7 @@ $banned_options = get_option( 'banned_options' );
                 <strong>&raquo;</strong> <?php _e('See <a href="http://www.user-agents.org/">http://www.user-agents.org/</a>', 'wp-ban'); ?>
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_user_agents" dir="ltr"><?php echo $banned_user_agents_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_user_agents" dir="ltr"><?php echo esc_textarea( $banned_user_agents_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -393,7 +404,7 @@ $banned_options = get_option( 'banned_options' );
                 <strong>&raquo;</strong> <?php _e('These Users Will Not Get Banned.', 'wp-ban'); ?>
             </td>
             <td>
-                <textarea cols="40" rows="10" name="banned_exclude_ips" dir="ltr"><?php echo $banned_exclude_ips_display; ?></textarea>
+                <textarea cols="40" rows="10" name="banned_exclude_ips" dir="ltr"><?php echo esc_textarea( $banned_exclude_ips_display ); ?></textarea>
             </td>
         </tr>
         <tr>
@@ -411,7 +422,7 @@ $banned_options = get_option( 'banned_options' );
                     <input type="button" id="show_button" value="<?php _e('Show Current Banned Message', 'wp-ban'); ?>" class="button" /><br />
             </td>
             <td>
-                <textarea cols="100" style="width: 100%;" rows="20" id="banned_template_message" name="banned_template_message"><?php echo stripslashes(get_option('banned_message')); ?></textarea>
+                <textarea cols="100" style="width: 100%;" rows="20" id="banned_template_message" name="banned_template_message"><?php echo esc_textarea( stripslashes( get_option('banned_message') ) ); ?></textarea>
                 <div id="banned_preview_message"></div>
             </td>
         </tr>
@@ -448,21 +459,21 @@ $banned_options = get_option( 'banned_options' );
                             $style = ' class="alternate"';
                         }
                         echo "<tr$style>\n";
-                        echo "<td style=\"text-align: center;\">$key</td>\n";
-                        echo "<td style=\"text-align: center;\">".number_format_i18n(intval($value))."</td>\n";
-                        echo "<td><input type=\"checkbox\" id=\"ban-$i\" name=\"delete_ips[]\" value=\"$key\" />&nbsp;<label for=\"ban-$i\">".__('Reset this IP ban stat?', 'wp-ban')."</label></td>\n";
+                        echo '<td style="text-align: center;">' . esc_html( $key ) . "</td>\n";
+                        echo '<td style="text-align: center;">' . esc_html( number_format_i18n( intval( $value ) ) ) . "</td>\n";
+                        echo '<td><input type="checkbox" id="ban-' . intval( $i ) . '" name="delete_ips[]" value="' . esc_attr( $key ) . '" />&nbsp;<label for="ban-' . intval( $i ) . '">' . esc_html__( 'Reset this IP ban stat?', 'wp-ban' ) . "</label></td>\n";
                         echo '</tr>'."\n";
                         $i++;
                     }
                 } else {
                     echo "<tr>\n";
-                    echo '<td colspan="3" align="center">'.__('No Attempts', 'wp-ban').'</td>'."\n";
+                    echo '<td colspan="3" align="center">' . esc_html__( 'No Attempts', 'wp-ban' ) . '</td>' . "\n";
                     echo '</tr>'."\n";
                 }
             ?>
         <tr class="thead">
             <td style="text-align: center;"><strong><?php _e('Total  Attempts:', 'wp-ban'); ?></strong></td>
-            <td style="text-align: center;"><strong><?php echo number_format_i18n(intval($banned_stats['count'])); ?></strong></td>
+            <td style="text-align: center;"><strong><?php echo esc_html( number_format_i18n( intval( $banned_stats['count'] ) ) ); ?></strong></td>
             <td><input type="checkbox" id="reset_ban_stats" name="reset_ban_stats" value="yes" />&nbsp;<label for="reset_ban_stats"><?php _e('Reset all IP ban stats and total ban stat?', 'wp-ban'); ?></label></td>
         </tr>
     </table>
