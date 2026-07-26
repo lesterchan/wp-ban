@@ -7,16 +7,16 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 $option_names = array(
-	'banned_ips'
-	, 'banned_hosts'
-	, 'banned_stats'
-	, 'banned_message'
-	, 'banned_referers'
-	, 'banned_exclude_ips'
-	, 'banned_ips_range'
-	, 'banned_user_agents'
+	'banned_ips',
+	'banned_hosts',
+	'banned_stats',
+	'banned_message',
+	'banned_referers',
+	'banned_exclude_ips',
+	'banned_ips_range',
+	'banned_user_agents',
 	// Added in 1.64 and never added here, so it outlived every uninstall.
-	, 'banned_options'
+	'banned_options',
 );
 
 /**
@@ -39,7 +39,12 @@ if ( is_multisite() ) {
 	 * hundredth while still reporting a successful uninstall. 'fields' => 'ids'
 	 * avoids hydrating WP_Site objects the loop never looks at.
 	 */
-	$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
+	$site_ids = get_sites(
+		array(
+			'fields' => 'ids',
+			'number' => 0,
+		)
+	);
 
 	foreach ( $site_ids as $site_id ) {
 		// switch_to_blog() pushes onto a stack, so the restore belongs inside
