@@ -22,6 +22,15 @@ class Test_Ban_Settings extends Ban_TestCase {
 			require_once ABSPATH . 'wp-admin/includes/screen.php';
 		}
 
+		/*
+		 * WP_List_Table::__construct() reaches WP_Screen::get(), which reads
+		 * $GLOBALS['hook_suffix'] unguarded on WordPress 6.0 -- the notice was
+		 * only fixed in a later release. wp-admin always sets it before a page
+		 * callback runs, so this is the test bootstrap standing in for
+		 * admin.php rather than a plugin-side problem.
+		 */
+		$GLOBALS['hook_suffix'] = 'settings_page_wp-ban';
+
 		set_current_screen( 'settings_page_wp-ban' );
 
 		/*

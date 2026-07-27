@@ -74,4 +74,14 @@
 	<rule ref="WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler">
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
+
+	<!--
+		The settings test sets $hook_suffix, which wp-admin would have set
+		before any page callback ran. WP_List_Table's constructor reaches
+		WP_Screen::get(), which reads that global unguarded on WordPress 6.0,
+		so the test bootstrap has to stand in for admin.php.
+	-->
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
 </ruleset>
