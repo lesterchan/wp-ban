@@ -27,7 +27,9 @@ class Ban_Stats_Table extends WP_List_Table {
 		parent::__construct(
 			array(
 				'singular' => 'ban-stat',
-				'plural'   => 'ban-stats',
+				// Ban_Settings::STATS_NONCE is derived from this; the bulk
+				// nonce WP_List_Table emits is "bulk-{$plural}".
+				'plural'   => Ban_Settings::STATS_PLURAL,
 				'ajax'     => false,
 			)
 		);

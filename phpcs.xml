@@ -62,4 +62,16 @@
 	<rule ref="WordPress.Security.NonceVerification">
 		<exclude-pattern>/tests/*</exclude-pattern>
 	</rule>
+	<!-- The tests read the plugin's own source; WP_Filesystem is not appropriate. -->
+	<rule ref="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+
+	<!--
+		The admin-screen test installs an error handler on purpose: collecting
+		the diagnostics is what makes it more than a smoke test.
+	-->
+	<rule ref="WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
 </ruleset>

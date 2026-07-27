@@ -31,11 +31,24 @@ class Ban_Settings {
 	const GROUP = 'ban_options_group';
 
 	/**
-	 * Nonce action for the statistics form.
+	 * The statistics table's "plural" name, as passed to WP_List_Table.
 	 *
 	 * @var string
 	 */
-	const STATS_NONCE = 'wp-ban_stats';
+	const STATS_PLURAL = 'ban-stats';
+
+	/**
+	 * Nonce action for the statistics form.
+	 *
+	 * WP_List_Table::display_tablenav() emits its own _wpnonce for
+	 * "bulk-{$plural}". A second wp_nonce_field() in the same form would be
+	 * overridden by it -- both inputs are named _wpnonce, and the last one
+	 * posted wins -- so every bulk action failed its referer check. Use the
+	 * table's nonce rather than competing with it.
+	 *
+	 * @var string
+	 */
+	const STATS_NONCE = 'bulk-' . self::STATS_PLURAL;
 
 	/**
 	 * The hook suffix admin_enqueue_scripts hands back for our screen.
@@ -532,10 +545,13 @@ class Ban_Settings {
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Ban Options', 'wp-ban' ) );
 
-		// Custom settings pages do not include wp-admin/options-head.php, so
-		// the notices queued by the sanitize callback are printed here.
-		settings_errors( Ban_Options::OPTION );
-
+		/*
+		 * No settings_errors() call here on purpose. WordPress already prints
+		 * the errors queued by the sanitize callback for pages registered under
+		 * Settings, and common.js then relocates the notices into .wrap -- so
+		 * adding a manual call renders every warning twice, in what looks like
+		 * the plugin's own markup. Verified in a browser, not just asserted.
+		 */
 		self::reset_notice();
 
 		echo '<form action="options.php" method="post">';
@@ -589,8 +605,9 @@ class Ban_Settings {
 			esc_html( number_format_i18n( Ban_Stats::total() ) )
 		);
 
+		// No wp_nonce_field() here: $table->display() emits the bulk nonce this
+		// form is checked against, and a second _wpnonce input would override it.
 		printf( '<form method="post" action="%s">', esc_url( self::url() ) );
-		wp_nonce_field( self::STATS_NONCE );
 		$table->display();
 
 		printf(
