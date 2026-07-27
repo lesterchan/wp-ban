@@ -37,7 +37,7 @@ jobs:
         run: $(composer global config bin-dir --absolute)/phpcs -q --report=checkstyle . | cs2pr
 
   eslint:
-    name: JS coding standards
+    name: JS coding standards and tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -52,6 +52,12 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint:js
+
+      # vitest + jsdom, loading ban.js the way the browser does. No build step
+      # and no vitest config file: the environment is set per test file,
+      # because plugin_deploy.sh has no vitest.config.* exclusion.
+      - name: Run JS tests
+        run: npm run test:js
 
   phpunit:
     name: PHPUnit (WP ${{ matrix.wordpress }}, PHP ${{ matrix.php }}${{ matrix.multisite && ', multisite' || '' }})
