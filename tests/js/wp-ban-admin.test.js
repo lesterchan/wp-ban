@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * ban.js, driven the way a visitor drives it.
- *
- * The environment is set per file rather than in a vitest config, because
- * plugin_deploy.sh has no vitest.config.* exclusion -- a root config file
- * would be rsynced into SVN trunk and shipped to users.
+ * js/wp-ban-admin.js, driven the way an administrator drives it.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -28,7 +24,7 @@ beforeAll( () => {
 	// is evaluated -- not merely before the first click.
 	window.wpBanL10n = L10N;
 
-	loadPluginScript( 'ban.js' );
+	loadPluginScript( 'js/wp-ban-admin.js' );
 } );
 
 beforeEach( () => {
@@ -113,7 +109,7 @@ describe( 'the request', () => {
 
 	it( 'posts the action registered on the PHP side', () => {
 		const php = readPluginFile( 'includes/class-ban-settings.php' );
-		const js = readPluginFile( 'ban.js' );
+		const js = readPluginFile( 'js/wp-ban-admin.js' );
 
 		const action = js.match( /action:\s*'([^']+)'/ )[ 1 ];
 

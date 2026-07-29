@@ -447,7 +447,7 @@ class Ban_Settings {
 
 		wp_enqueue_script(
 			'wp-ban-admin',
-			WP_BAN_URL . 'ban.js',
+			WP_BAN_URL . 'js/wp-ban-admin.js',
 			array(),
 			WP_BAN_VERSION,
 			// wp_enqueue_script()'s $args array, and with it

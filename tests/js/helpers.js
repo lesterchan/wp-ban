@@ -1,5 +1,5 @@
 /**
- * Helpers for the ban.js tests.
+ * Helpers for the WP-Ban admin script tests.
  *
  * There is no build step in this plugin, so the script is loaded the way the
  * browser loads it: read off disk and evaluated as-is.
@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 /**
  * Read and evaluate a plugin script in the current jsdom window.
  *
- * Evaluate this ONCE per test file. ban.js attaches its listener to document,
+ * Evaluate this ONCE per test file. The script attaches its listener to document,
  * so a second evaluation adds a second listener and every handler fires twice.
  * Reset document.body.innerHTML between tests instead -- the listener lives on
  * document and survives that.
