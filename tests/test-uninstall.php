@@ -23,11 +23,14 @@ class Test_Ban_Uninstall extends WP_Ban_TestCase {
 		$source = $this->source();
 
 		$owned = array(
+			'wp_ban_options',
+			'wp_ban_stats',
+			'wp_ban_version',
+			// Pre-2.0.0 rows: a site that never loaded wp-admin after updating
+			// never ran the upgrade, so uninstall must clean them too.
 			'banned_options',
 			'banned_stats',
 			'ban_db_version',
-			// Pre-2.0.0 rows: a site that never loaded wp-admin after updating
-			// can still be carrying them, so uninstall must clean them too.
 			'banned_ips',
 			'banned_ips_range',
 			'banned_hosts',

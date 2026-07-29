@@ -163,9 +163,9 @@ class WP_Ban_Settings {
 	 * @return void
 	 */
 	public static function register() {
-		// Activation does not fire when a plugin is updated, so the migration
-		// is driven from here too.
-		WP_Ban_Options::maybe_migrate();
+		// Activation does not fire when a plugin is updated, so the upgrade is
+		// driven from here too.
+		WP_Ban_Options::maybe_upgrade();
 
 		register_setting(
 			self::GROUP,

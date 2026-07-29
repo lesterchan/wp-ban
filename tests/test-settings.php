@@ -276,23 +276,34 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 	}
 
 	/**
-	 * The point of the consolidation: one row where there were eight.
+	 * The point of the consolidation: three prefixed rows where there were ten
+	 * unprefixed ones.
 	 */
-	public function test_the_plugin_owns_at_most_three_option_rows() {
+	public function test_the_plugin_owns_exactly_three_option_rows() {
 		global $wpdb;
 
+		WP_Ban_Options::maybe_upgrade();
 		$this->test_a_form_post_round_trips_through_the_registered_sanitizer();
 		WP_Ban_Stats::record( '203.0.113.1' );
 
 		$rows = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s ORDER BY option_name",
+				$wpdb->esc_like( 'wp_ban_' ) . '%'
+			)
+		);
+
+		$this->assertSame( array( 'wp_ban_options', 'wp_ban_stats', 'wp_ban_version' ), $rows );
+
+		$legacy = $wpdb->get_col(
 			"SELECT option_name FROM {$wpdb->options}
 			 WHERE option_name IN (
 				'banned_options','banned_stats','ban_db_version','banned_ips','banned_ips_range',
 				'banned_hosts','banned_referers','banned_user_agents','banned_exclude_ips','banned_message'
-			 ) ORDER BY option_name"
+			 )"
 		);
 
-		$this->assertSame( array( 'ban_db_version', 'banned_options', 'banned_stats' ), $rows );
+		$this->assertSame( array(), $legacy, 'an unprefixed row was left behind' );
 	}
 
 	public function test_the_preview_endpoint_is_registered_without_a_public_twin() {

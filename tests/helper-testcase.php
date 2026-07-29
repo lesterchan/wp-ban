@@ -36,14 +36,17 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 		$_SERVER['REMOTE_ADDR'] = '198.51.100.200';
 
 		delete_option( WP_Ban_Options::OPTION );
+		delete_option( WP_Ban_Options::VERSION );
 		delete_option( WP_Ban_Stats::OPTION );
-		delete_option( WP_Ban_Options::DB_VERSION_OPTION );
 
 		foreach ( array_keys( WP_Ban_Options::LEGACY_LIST_OPTIONS ) as $legacy ) {
 			delete_option( $legacy );
 		}
 
-		delete_option( 'banned_message' );
+		delete_option( WP_Ban_Options::LEGACY_OPTION );
+		delete_option( WP_Ban_Options::LEGACY_MESSAGE );
+		delete_option( WP_Ban_Options::LEGACY_DB_VERSION );
+		delete_option( WP_Ban_Stats::LEGACY_OPTION );
 
 		WP_Ban_Options::flush_cache();
 	}
@@ -97,7 +100,16 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 		// Written raw rather than through update_option(), so the sanitize
 		// callback is only in play in the tests that are actually about it.
 		update_option( WP_Ban_Options::OPTION, array_merge( $merged, $options ) );
-		update_option( WP_Ban_Options::DB_VERSION_OPTION, WP_Ban_Options::DB_VERSION );
+
+		// Marks the install as already upgraded, so a later maybe_upgrade()
+		// leaves what the test just wrote alone.
+		update_option(
+			WP_Ban_Options::VERSION,
+			array(
+				'plugin' => WP_BAN_VERSION,
+				'db'     => WP_BAN_DB_VERSION,
+			)
+		);
 
 		WP_Ban_Options::flush_cache();
 	}

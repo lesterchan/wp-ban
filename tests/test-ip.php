@@ -117,7 +117,7 @@ class Test_Ban_IP extends WP_Ban_TestCase {
 	}
 
 	/**
-	 * Regression pin: banned_stats is keyed by this value, so any change to how
+	 * Regression pin: wp_ban_stats is keyed by this value, so any change to how
 	 * a well-formed address is normalised orphans every row already recorded.
 	 *
 	 * @dataProvider data_addresses

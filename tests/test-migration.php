@@ -1,6 +1,6 @@
 <?php
 /**
- * The 2.0.0 migration: eight option rows into one.
+ * The 2.0.0 upgrade: ten unprefixed option rows into three wp_ban_* ones.
  *
  * @package WP-Ban
  */
@@ -27,8 +27,16 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 		update_option( 'banned_options', array( 'reverse_proxy' => 1 ) );
 		// Stored still slashed, and stripslashes()'d on every read.
 		update_option( 'banned_message', addslashes( "<div id=\"wp-ban-container\"><p>It's you.</p></div>" ) );
+		update_option(
+			'banned_stats',
+			array(
+				'users' => array( '203.0.113.99' => 7 ),
+				'count' => 7,
+			)
+		);
+		update_option( 'ban_db_version', 1 );
 
-		delete_option( WP_Ban_Options::DB_VERSION_OPTION );
+		delete_option( WP_Ban_Options::VERSION );
 
 		WP_Ban_Options::flush_cache();
 	}
@@ -36,7 +44,7 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_the_lists_move_into_the_consolidated_row() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
@@ -53,7 +61,7 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_html_entities_in_stored_entries_are_decoded() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame(
@@ -68,7 +76,7 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_a_migrated_referrer_pattern_matches_a_real_header() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertTrue(
@@ -82,7 +90,7 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_the_message_is_unslashed_exactly_once() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( '<div id="wp-ban-container"><p>It\'s you.</p></div>', WP_Ban_Options::message() );
@@ -92,7 +100,7 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_the_reused_row_keeps_its_existing_value() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$options = WP_Ban_Options::get();
@@ -100,44 +108,69 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 		$this->assertTrue( $options['reverse_proxy'], 'reverse_proxy was lost by the consolidation' );
 	}
 
-	public function test_legacy_rows_are_deleted_but_not_the_one_reused() {
+	public function test_every_unprefixed_row_is_deleted() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 
-		foreach ( array_keys( WP_Ban_Options::LEGACY_LIST_OPTIONS ) as $legacy ) {
-			$this->assertFalse( get_option( $legacy, false ), "{$legacy} survived the migration" );
+		$legacy_rows = array_merge(
+			array_keys( WP_Ban_Options::LEGACY_LIST_OPTIONS ),
+			array(
+				WP_Ban_Options::LEGACY_OPTION,
+				WP_Ban_Options::LEGACY_MESSAGE,
+				WP_Ban_Options::LEGACY_DB_VERSION,
+				WP_Ban_Stats::LEGACY_OPTION,
+			)
+		);
+
+		foreach ( $legacy_rows as $legacy ) {
+			$this->assertFalse( get_option( $legacy, false ), "{$legacy} survived the upgrade" );
 		}
-
-		$this->assertFalse( get_option( 'banned_message', false ) );
-
-		// banned_options is the row being consolidated INTO. Deleting it here
-		// would throw away everything the migration just wrote.
-		$this->assertNotFalse( get_option( WP_Ban_Options::OPTION, false ) );
 	}
 
-	public function test_the_statistics_row_is_left_alone() {
+	public function test_the_three_prefixed_rows_hold_the_values() {
+		$this->seed_legacy();
+
+		WP_Ban_Options::maybe_upgrade();
+		WP_Ban_Options::flush_cache();
+
+		$this->assertNotFalse( get_option( WP_Ban_Options::OPTION, false ), 'the settings row was not created' );
+		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertSame( 7, WP_Ban_Stats::total(), 'the counters did not move to wp_ban_stats' );
+		$this->assertSame( 7, WP_Ban_Stats::attempts_for( '203.0.113.99' ) );
+	}
+
+	public function test_a_statistics_row_already_on_the_new_name_is_left_alone() {
 		$this->seed_legacy();
 		update_option(
 			WP_Ban_Stats::OPTION,
 			array(
-				'users' => array( '203.0.113.99' => 7 ),
-				'count' => 7,
+				'users' => array( '198.51.100.9' => 3 ),
+				'count' => 3,
 			)
 		);
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 
-		$this->assertSame( 7, WP_Ban_Stats::total() );
-		$this->assertSame( 7, WP_Ban_Stats::attempts_for( '203.0.113.99' ) );
+		$this->assertSame( 3, WP_Ban_Stats::total(), 'the legacy counters overwrote the current ones' );
+		$this->assertSame( 0, WP_Ban_Stats::attempts_for( '203.0.113.99' ) );
 	}
 
-	public function test_the_schema_version_is_recorded() {
+	public function test_both_version_markers_are_recorded_together() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 
-		$this->assertSame( WP_Ban_Options::DB_VERSION, (int) get_option( WP_Ban_Options::DB_VERSION_OPTION ) );
+		$markers = get_option( WP_Ban_Options::VERSION );
+
+		$this->assertSame(
+			array(
+				'plugin' => WP_BAN_VERSION,
+				'db'     => WP_BAN_DB_VERSION,
+			),
+			$markers,
+			'wp_ban_version must hold both markers and nothing else'
+		);
 	}
 
 	/**
@@ -148,12 +181,12 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 	public function test_running_the_migration_twice_does_not_reset_settings() {
 		$this->seed_legacy();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$after_first = WP_Ban_Options::get();
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( $after_first, WP_Ban_Options::get() );
@@ -167,40 +200,68 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 		// allowed to overwrite settings that have already been consolidated.
 		update_option( 'banned_ips', array( 'should-not-win' ) );
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array( '1.2.3.4' ), WP_Ban_Options::list_of( 'ips' ) );
 	}
 
-	public function test_a_fresh_install_needs_no_legacy_rows() {
-		delete_option( WP_Ban_Options::DB_VERSION_OPTION );
+	/**
+	 * The 'plugin' marker's own job: driving the non-schema upgrade steps.
+	 *
+	 * A release that changes no row shape still has to be able to repair a
+	 * settings row whose shape has been tightened, and it must do so without
+	 * running the sanitiser -- which would drop entries matching whoever
+	 * happens to be loading wp-admin at the time.
+	 */
+	public function test_a_new_plugin_version_alone_renormalises_the_settings_row() {
+		$this->set_options( array( 'lists' => array( 'ips' => array( '8.8.8.8' ) ) ) );
 
-		WP_Ban_Options::maybe_migrate();
+		update_option(
+			WP_Ban_Options::VERSION,
+			array(
+				'plugin' => '1.99.0',
+				'db'     => WP_BAN_DB_VERSION,
+			)
+		);
+
+		// A row that has lost its list group entirely, as a partial write would
+		// leave it.
+		update_option( WP_Ban_Options::OPTION, array( 'reverse_proxy' => true ) );
+		WP_Ban_Options::flush_cache();
+
+		WP_Ban_Options::maybe_upgrade();
+		WP_Ban_Options::flush_cache();
+
+		$stored = get_option( WP_Ban_Options::OPTION );
+
+		$this->assertArrayHasKey( 'lists', $stored, 'the stored row was not renormalised' );
+		$this->assertSame( array(), WP_Ban_Options::list_of( 'hosts' ) );
+		$this->assertSame( WP_BAN_VERSION, WP_Ban_Options::markers()['plugin'] );
+	}
+
+	public function test_a_fresh_install_needs_no_legacy_rows() {
+		delete_option( WP_Ban_Options::VERSION );
+
+		WP_Ban_Options::maybe_upgrade();
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
 		$this->assertNotEmpty( WP_Ban_Options::message() );
-		$this->assertSame( WP_Ban_Options::DB_VERSION, (int) get_option( WP_Ban_Options::DB_VERSION_OPTION ) );
+		$this->assertNotFalse( get_option( WP_Ban_Options::OPTION, false ), 'a fresh install must still get its settings row' );
+		$this->assertSame( WP_BAN_DB_VERSION, WP_Ban_Options::markers()['db'] );
 	}
 
 	/**
 	 * The statistics row is written on every banned request and grows one entry
 	 * per attacker, so it must not load on every page view.
 	 */
-	public function test_the_statistics_row_is_demoted_out_of_autoload() {
+	public function test_the_statistics_row_arrives_outside_autoload() {
 		global $wpdb;
 
 		$this->seed_legacy();
-		update_option(
-			WP_Ban_Stats::OPTION,
-			array(
-				'users' => array(),
-				'count' => 0,
-			)
-		);
 
-		WP_Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_upgrade();
 
 		$autoload = $wpdb->get_var(
 			$wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", WP_Ban_Stats::OPTION )
@@ -232,6 +293,6 @@ class Test_Ban_Migration extends WP_Ban_TestCase {
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertSame( WP_Ban_Options::DB_VERSION, (int) get_option( WP_Ban_Options::DB_VERSION_OPTION ) );
+		$this->assertSame( WP_BAN_DB_VERSION, WP_Ban_Options::markers()['db'] );
 	}
 }

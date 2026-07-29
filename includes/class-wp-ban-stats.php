@@ -2,7 +2,7 @@
 /**
  * Ban attempt statistics.
  *
- * Kept in a row of its own rather than folded into banned_options: it is
+ * Kept in a row of its own rather than folded into wp_ban_options: it is
  * written on every banned request and grows one entry per distinct attacker,
  * so folding it into the settings blob would mean rewriting the whole blob on
  * every hit -- and autoloading an unbounded row on every request.
@@ -18,11 +18,18 @@ defined( 'ABSPATH' ) || exit;
 class WP_Ban_Stats {
 
 	/**
-	 * Option name.
+	 * Option name. Never autoloaded.
 	 *
 	 * @var string
 	 */
-	const OPTION = 'banned_stats';
+	const OPTION = 'wp_ban_stats';
+
+	/**
+	 * The pre-2.0.0 row name, moved to OPTION by the upgrade.
+	 *
+	 * @var string
+	 */
+	const LEGACY_OPTION = 'banned_stats';
 
 	/**
 	 * The stored statistics, normalised.
@@ -144,21 +151,25 @@ class WP_Ban_Stats {
 	}
 
 	/**
-	 * Take an existing row out of the autoloaded set.
+	 * Move the pre-2.0.0 counters onto the prefixed row.
 	 *
-	 * Passing $autoload to update_option() is ignored when the value has not
-	 * changed, so the row is deleted and re-added instead.
+	 * The new row is created with add_option(), so it arrives outside the
+	 * autoloaded set: until 2.0.0 an unbounded counter of every address ever
+	 * turned away was read on every single page view of the site.
 	 *
 	 * @return void
 	 */
-	public static function demote_autoload() {
-		$stats = get_option( self::OPTION, null );
+	public static function migrate_legacy() {
+		$stats = get_option( self::LEGACY_OPTION, null );
 
 		if ( null === $stats ) {
 			return;
 		}
 
-		delete_option( self::OPTION );
-		add_option( self::OPTION, $stats, '', false );
+		delete_option( self::LEGACY_OPTION );
+
+		if ( false === get_option( self::OPTION, false ) ) {
+			add_option( self::OPTION, $stats, '', false );
+		}
 	}
 }

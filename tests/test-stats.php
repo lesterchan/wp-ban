@@ -97,11 +97,30 @@ class Test_Ban_Stats extends WP_Ban_TestCase {
 		$this->assertContains( $autoload, array( 'no', 'off' ), "autoload is {$autoload}" );
 	}
 
-	public function test_demote_autoload_is_a_no_op_when_there_is_no_row() {
+	public function test_migrating_is_a_no_op_when_there_is_no_legacy_row() {
+		delete_option( WP_Ban_Stats::LEGACY_OPTION );
 		delete_option( WP_Ban_Stats::OPTION );
 
-		WP_Ban_Stats::demote_autoload();
+		WP_Ban_Stats::migrate_legacy();
 
-		$this->assertFalse( get_option( WP_Ban_Stats::OPTION, false ) );
+		$this->assertFalse( get_option( WP_Ban_Stats::OPTION, false ), 'nothing to move means no row to create' );
+	}
+
+	public function test_migrating_moves_the_counters_onto_the_prefixed_row() {
+		delete_option( WP_Ban_Stats::OPTION );
+
+		update_option(
+			WP_Ban_Stats::LEGACY_OPTION,
+			array(
+				'users' => array( '203.0.113.7' => 4 ),
+				'count' => 4,
+			)
+		);
+
+		WP_Ban_Stats::migrate_legacy();
+
+		$this->assertFalse( get_option( WP_Ban_Stats::LEGACY_OPTION, false ), 'banned_stats survived the move' );
+		$this->assertSame( 4, WP_Ban_Stats::total() );
+		$this->assertSame( 4, WP_Ban_Stats::attempts_for( '203.0.113.7' ) );
 	}
 }

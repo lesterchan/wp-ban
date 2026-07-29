@@ -4,16 +4,28 @@
  *
  * Before 2.0.0 the plugin scattered its settings across eight autoloaded
  * option rows -- banned_ips, banned_ips_range, banned_hosts, banned_referers,
- * banned_user_agents, banned_exclude_ips, banned_message and banned_options.
- * They are now one nested array in `banned_options`, the row the plugin
- * already owned, so consolidating adds no new row name and the existing
- * reverse_proxy value merges over the defaults for free.
+ * banned_user_agents, banned_exclude_ips, banned_message and banned_options --
+ * plus ban_db_version and banned_stats. Every one of those names was
+ * unprefixed, and `banned_options` was close enough to a name another plugin
+ * might reasonably pick to be worth losing.
  *
- * Two things stay in rows of their own: `banned_stats`, which is written on
- * every banned request and grows one entry per attacker (folding it in would
- * mean rewriting the whole blob on every hit), and `ban_db_version`, which is
- * read to decide whether the main row needs migrating and so cannot live
- * inside the thing being migrated.
+ * They are now three rows, all spelled wp_ban_*: wp_ban_options holds every
+ * setting as one nested array, wp_ban_version holds the two upgrade markers,
+ * and wp_ban_stats holds the attempt counters.
+ *
+ * The markers live outside the settings array on purpose. A sanitize callback
+ * is a function from what the form posted to what gets stored, and the form
+ * never posts a version marker -- so a marker kept in there has to be rescued
+ * by hand on every save, and the first save that forgets to leaves the upgrade
+ * running on every request forever. Separate rows make that impossible by
+ * construction: the settings screen writes wp_ban_options, the upgrade routine
+ * writes wp_ban_version, and neither can corrupt the other.
+ *
+ * wp_ban_stats stays out of the settings blob for a different reason: it is
+ * written on every banned request and grows one entry per attacker, so folding
+ * it in would mean rewriting the whole blob on every hit -- and autoloading an
+ * unbounded row on every page view. It is the one row here that is not
+ * autoloaded.
  *
  * @package WP-Ban
  */
@@ -21,39 +33,47 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Reads, normalises and migrates the plugin's settings.
+ * Reads, normalises and upgrades the plugin's settings.
  */
 class WP_Ban_Options {
 
 	/**
-	 * Name of the single option row holding every setting.
+	 * Name of the single option row holding every setting. Autoloaded.
 	 *
 	 * @var string
 	 */
-	const OPTION = 'banned_options';
+	const OPTION = 'wp_ban_options';
 
 	/**
-	 * Name of the row holding the schema version.
+	 * Upgrade markers row, holding 'plugin' and 'db'. Autoloaded.
 	 *
 	 * @var string
 	 */
-	const DB_VERSION_OPTION = 'ban_db_version';
+	const VERSION = 'wp_ban_version';
 
 	/**
-	 * Current schema version.
+	 * The pre-2.0.0 settings row, folded into OPTION by the upgrade.
 	 *
-	 * 2 is the consolidation of the eight pre-2.0.0 rows into one.
-	 *
-	 * @var int
+	 * @var string
 	 */
-	const DB_VERSION = 2;
+	const LEGACY_OPTION = 'banned_options';
 
 	/**
-	 * The pre-2.0.0 rows, and which list key each became.
+	 * The pre-2.0.0 banned message row.
 	 *
-	 * Note that banned_options is deliberately absent: it is the row being
-	 * consolidated into, and deleting it would throw away the settings just
-	 * written.
+	 * @var string
+	 */
+	const LEGACY_MESSAGE = 'banned_message';
+
+	/**
+	 * The pre-2.0.0 schema counter, replaced by the 'db' marker in VERSION.
+	 *
+	 * @var string
+	 */
+	const LEGACY_DB_VERSION = 'ban_db_version';
+
+	/**
+	 * The pre-2.0.0 list rows, and which list key each became.
 	 *
 	 * @var array<string, string>
 	 */
@@ -461,29 +481,100 @@ class WP_Ban_Options {
 	}
 
 	/**
-	 * Move the pre-2.0.0 rows into the consolidated one.
+	 * The stored upgrade markers, normalised to the two keys they may hold.
 	 *
-	 * Gated on the stored schema version rather than on "do the old keys still
-	 * exist": an install that has already migrated has no old keys, and would
+	 * @return array{plugin: string, db: string}
+	 */
+	public static function markers() {
+		$stored = get_option( self::VERSION, array() );
+
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+
+		return array(
+			'plugin' => isset( $stored['plugin'] ) ? (string) $stored['plugin'] : '',
+			'db'     => isset( $stored['db'] ) ? (string) $stored['db'] : '',
+		);
+	}
+
+	/**
+	 * Bring the stored rows up to the running version.
+	 *
+	 * Gated on the stored markers rather than on "do the old rows still
+	 * exist": an install that has already upgraded has no old rows, and would
 	 * otherwise have defaults written straight over its settings.
 	 *
 	 * Driven from admin_init as well as activation, because activation does not
-	 * fire when a plugin is updated.
+	 * fire when a plugin is updated -- which is how the overwhelming majority
+	 * of installs will arrive here.
 	 *
 	 * @return void
 	 */
-	public static function maybe_migrate() {
-		if ( (int) get_option( self::DB_VERSION_OPTION, 0 ) >= self::DB_VERSION ) {
+	public static function maybe_upgrade() {
+		$markers = self::markers();
+
+		if ( (int) $markers['db'] < (int) WP_BAN_DB_VERSION ) {
+			self::migrate();
+		} elseif ( WP_BAN_VERSION === $markers['plugin'] ) {
 			return;
+		} else {
+			/*
+			 * A new plugin version with the schema unchanged: re-normalise
+			 * what is stored, so a shape tightened since the last release is
+			 * repaired without waiting for someone to open the settings screen
+			 * and press Save.
+			 *
+			 * Deliberately get() and not sanitize(). The sanitiser also drops
+			 * entries matching whoever is browsing, which is right for a form
+			 * post and quietly destructive for an unattended upgrade running
+			 * on some administrator's first admin_init after an update.
+			 */
+			update_option( self::OPTION, self::get() );
 		}
 
-		$options = get_option( self::OPTION, array() );
+		// Both markers in one write, so an upgrade that dies half way never
+		// records itself as finished.
+		update_option(
+			self::VERSION,
+			array(
+				'plugin' => WP_BAN_VERSION,
+				'db'     => WP_BAN_DB_VERSION,
+			),
+			true
+		);
+
+		self::flush_cache();
+	}
+
+	/**
+	 * Fold the pre-2.0.0 rows into wp_ban_options and wp_ban_stats.
+	 *
+	 * Ten rows become three, and every old name is deleted rather than left
+	 * behind to be re-read by a later half-finished update.
+	 *
+	 * @return void
+	 */
+	private static function migrate() {
+		$options = get_option( self::LEGACY_OPTION, null );
+
+		// Nothing legacy to read on a fresh install; the defaults below then
+		// stand in for it and the row is simply created.
+		if ( null === $options ) {
+			$options = get_option( self::OPTION, array() );
+		}
 
 		if ( ! is_array( $options ) ) {
 			$options = array();
 		}
 
+		// wp_parse_args() is shallow, so the nested list group is guarded
+		// rather than merged.
 		$options = wp_parse_args( $options, self::defaults() );
+
+		if ( ! isset( $options['lists'] ) || ! is_array( $options['lists'] ) ) {
+			$options['lists'] = self::defaults()['lists'];
+		}
 
 		// reverse_proxy was an int in the pre-2.0.0 row.
 		$options['reverse_proxy'] = ! empty( $options['reverse_proxy'] );
@@ -498,7 +589,7 @@ class WP_Ban_Options {
 			$options['lists'][ $key ] = self::decode_legacy_list( (array) $value );
 		}
 
-		$message = get_option( 'banned_message', null );
+		$message = get_option( self::LEGACY_MESSAGE, null );
 
 		if ( null !== $message ) {
 			/*
@@ -517,13 +608,11 @@ class WP_Ban_Options {
 			delete_option( $legacy_option );
 		}
 
-		delete_option( 'banned_message' );
+		delete_option( self::LEGACY_MESSAGE );
+		delete_option( self::LEGACY_OPTION );
+		delete_option( self::LEGACY_DB_VERSION );
 
-		WP_Ban_Stats::demote_autoload();
-
-		update_option( self::DB_VERSION_OPTION, self::DB_VERSION );
-
-		self::flush_cache();
+		WP_Ban_Stats::migrate_legacy();
 	}
 
 	/**

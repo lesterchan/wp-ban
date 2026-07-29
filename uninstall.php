@@ -3,7 +3,8 @@
  * Uninstall WP-Ban.
  *
  * Runs with the plugin inactive, so nothing here may depend on the plugin's
- * own classes or functions being loaded.
+ * own classes, constants or functions being loaded. The row names are
+ * therefore spelled out rather than read from WP_Ban_Options.
  *
  * @package WP-Ban
  */
@@ -15,18 +16,22 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 /**
  * Delete the plugin's options for the current site.
  *
- * The six list rows and banned_message were folded into banned_options by the
- * 2.0.0 migration, but a site that never loaded wp-admin after updating can
- * still be carrying them, so they are cleaned up here too.
+ * The three wp_ban_* rows are what 2.0.0 stores. Every pre-2.0.0 name is
+ * listed after them because a site that deletes the plugin without ever
+ * loading wp-admin after the update never ran the upgrade, and so is still
+ * carrying all ten.
  *
  * @return void
  */
 function wp_ban_uninstall_site() {
 	$option_names = array(
+		'wp_ban_options',
+		'wp_ban_stats',
+		'wp_ban_version',
+		// Pre-2.0.0 rows.
 		'banned_options',
 		'banned_stats',
 		'ban_db_version',
-		// Pre-2.0.0 rows.
 		'banned_ips',
 		'banned_ips_range',
 		'banned_hosts',

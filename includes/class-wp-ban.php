@@ -108,11 +108,8 @@ class WP_Ban {
 	 * @return void
 	 */
 	private static function activate_site() {
-		WP_Ban_Options::maybe_migrate();
-
-		if ( false === get_option( WP_Ban_Options::OPTION, false ) ) {
-			add_option( WP_Ban_Options::OPTION, WP_Ban_Options::defaults() );
-			update_option( WP_Ban_Options::DB_VERSION_OPTION, WP_Ban_Options::DB_VERSION );
-		}
+		// maybe_upgrade() creates the settings row from the defaults when there
+		// is nothing legacy to fold in, so a fresh install needs nothing else.
+		WP_Ban_Options::maybe_upgrade();
 	}
 }
