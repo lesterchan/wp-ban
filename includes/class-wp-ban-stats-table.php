@@ -26,7 +26,7 @@ class WP_Ban_Stats_Table extends WP_List_Table {
 	public function __construct() {
 		parent::__construct(
 			array(
-				'singular' => 'ban-stat',
+				'singular' => 'wp-ban-stat',
 				// WP_Ban_Settings::STATS_NONCE is derived from this; the bulk
 				// nonce WP_List_Table emits is "bulk-{$plural}".
 				'plural'   => WP_Ban_Settings::STATS_PLURAL,
@@ -127,7 +127,7 @@ class WP_Ban_Stats_Table extends WP_List_Table {
 		}
 
 		$total    = count( $items );
-		$per_page = $this->get_items_per_page( 'ban_stats_per_page', 50 );
+		$per_page = $this->get_items_per_page( 'wp_ban_stats_per_page', 20 );
 		$page     = $this->get_pagenum();
 
 		$this->items = array_slice( $items, ( $page - 1 ) * $per_page, $per_page );

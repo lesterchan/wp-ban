@@ -32,7 +32,7 @@
 
 	function showPreview( button, textarea, preview ) {
 		const body = new URLSearchParams( {
-			action: 'ban-admin',
+			action: 'wp_ban_preview',
 			_ajax_nonce: l10n.nonce || '',
 		} );
 

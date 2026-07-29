@@ -50,7 +50,7 @@ class WP_Ban_Settings {
 	 *
 	 * @var string
 	 */
-	const STATS_PLURAL = 'ban-stats';
+	const STATS_PLURAL = 'wp-ban-stats';
 
 	/**
 	 * Nonce action for the statistics form.
@@ -81,7 +81,7 @@ class WP_Ban_Settings {
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
-		add_action( 'wp_ajax_ban-admin', array( __CLASS__, 'ajax_preview' ) );
+		add_action( 'wp_ajax_wp_ban_preview', array( __CLASS__, 'ajax_preview' ) );
 		add_filter(
 			'plugin_action_links_' . plugin_basename( WP_BAN_MAIN_FILE ),
 			array( __CLASS__, 'action_links' )
@@ -497,7 +497,7 @@ class WP_Ban_Settings {
 			'wpBanL10n',
 			array(
 				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-				'nonce'           => wp_create_nonce( 'wp-ban_preview' ),
+				'nonce'           => wp_create_nonce( 'wp_ban_preview' ),
 				'defaultTemplate' => WP_Ban_Options::default_message(),
 				'previewError'    => __( 'The preview could not be loaded.', 'wp-ban' ),
 			)
@@ -517,7 +517,7 @@ class WP_Ban_Settings {
 			wp_die( -1, 403 );
 		}
 
-		check_ajax_referer( 'wp-ban_preview' );
+		check_ajax_referer( 'wp_ban_preview' );
 
 		echo wp_kses( WP_Ban_Blocker::preview(), WP_Ban_Options::allowed_html() );
 

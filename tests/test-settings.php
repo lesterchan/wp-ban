@@ -192,7 +192,7 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 	}
 
 	public function test_the_stats_table_is_paginated() {
-		for ( $i = 1; $i <= 60; $i++ ) {
+		for ( $i = 1; $i <= 30; $i++ ) {
 			WP_Ban_Stats::record( '203.0.113.' . $i );
 		}
 
@@ -200,7 +200,7 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 		$table->prepare_items();
 
 		// The pre-2.0.0 screen rendered every recorded address on one page.
-		$this->assertCount( 50, $table->items );
+		$this->assertCount( 20, $table->items );
 	}
 
 	public function test_the_stats_table_sorts_by_attempts_by_default() {
@@ -307,8 +307,8 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 	}
 
 	public function test_the_preview_endpoint_is_registered_without_a_public_twin() {
-		$this->assertNotFalse( has_action( 'wp_ajax_ban-admin', array( 'WP_Ban_Settings', 'ajax_preview' ) ) );
-		$this->assertFalse( has_action( 'wp_ajax_nopriv_ban-admin' ) );
+		$this->assertNotFalse( has_action( 'wp_ajax_wp_ban_preview', array( 'WP_Ban_Settings', 'ajax_preview' ) ) );
+		$this->assertFalse( has_action( 'wp_ajax_nopriv_wp_ban_preview' ) );
 	}
 
 	/**
@@ -320,7 +320,7 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 	public function test_a_subscriber_cannot_read_the_preview() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'wp-ban_preview' );
+		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'wp_ban_preview' );
 
 		$this->expectException( WPDieException::class );
 
@@ -344,7 +344,7 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 			array( 'message' => '<div id="wp-ban-container"><p>PREVIEW-CANARY %USER_IP%</p></div>' )
 		);
 
-		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'wp-ban_preview' );
+		$_REQUEST['_ajax_nonce'] = wp_create_nonce( 'wp_ban_preview' );
 
 		ob_start();
 

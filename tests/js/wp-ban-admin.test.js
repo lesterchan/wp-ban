@@ -77,7 +77,7 @@ describe( 'the request', () => {
 	/**
 	 * The contract the PHP side depends on. WP_Ban_Settings::ajax_preview() is
 	 * reached through wp_ajax_{action} and gated by
-	 * check_ajax_referer( 'wp-ban_preview' ), which reads _ajax_nonce -- so
+	 * check_ajax_referer( 'wp_ban_preview' ), which reads _ajax_nonce -- so
 	 * both field names are load-bearing, not implementation detail.
 	 */
 	it( 'posts the action and nonce field names the PHP side reads', async () => {
@@ -90,7 +90,7 @@ describe( 'the request', () => {
 
 		expect( url ).toBe( L10N.ajaxUrl );
 		expect( init.method ).toBe( 'POST' );
-		expect( body.get( 'action' ) ).toBe( 'ban-admin' );
+		expect( body.get( 'action' ) ).toBe( 'wp_ban_preview' );
 		expect( body.get( '_ajax_nonce' ) ).toBe( L10N.nonce );
 	} );
 
@@ -114,7 +114,7 @@ describe( 'the request', () => {
 		// A rename on either side silently breaks the preview, and nothing in
 		// PHP or JS alone would notice.
 		expect( php ).toContain( `wp_ajax_${ action }` );
-		expect( php ).toContain( "check_ajax_referer( 'wp-ban_preview' )" );
+		expect( php ).toContain( "check_ajax_referer( 'wp_ban_preview' )" );
 	} );
 } );
 
