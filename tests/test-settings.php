@@ -8,7 +8,7 @@
 /**
  * @covers WP_Ban_Settings
  */
-class Test_Ban_Settings extends WP_Ban_TestCase {
+class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 	/**
 	 * Set up.
@@ -24,8 +24,7 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 
 		/*
 		 * WP_List_Table::__construct() reaches WP_Screen::get(), which reads
-		 * $GLOBALS['hook_suffix'] unguarded on WordPress 6.0 -- the notice was
-		 * only fixed in a later release. wp-admin always sets it before a page
+		 * $GLOBALS['hook_suffix']. wp-admin always sets it before a page
 		 * callback runs, so this is the test bootstrap standing in for
 		 * admin.php rather than a plugin-side problem.
 		 */

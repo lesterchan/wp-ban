@@ -6,9 +6,9 @@
  */
 
 /**
- * @covers WP_Ban_Uninstall
+ * @coversNothing
  */
-class Test_Ban_Uninstall extends WP_Ban_TestCase {
+class WP_Ban_Uninstall_Test extends WP_Ban_TestCase {
 
 	/**
 	 * The uninstaller's source.

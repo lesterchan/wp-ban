@@ -8,7 +8,7 @@
 /**
  * @covers WP_Ban_Blocker
  */
-class Test_Ban_Blocker extends WP_Ban_TestCase {
+class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 
 	public function test_a_listed_ip_is_banned() {
 		$_SERVER['REMOTE_ADDR'] = '192.168.77.10';

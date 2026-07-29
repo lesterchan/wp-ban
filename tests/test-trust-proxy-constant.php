@@ -21,7 +21,7 @@
  * @runTestsInSeparateProcesses
  * @preserveGlobalState disabled
  */
-class Test_Ban_Trust_Proxy_Constant extends WP_Ban_TestCase {
+class WP_Ban_Trust_Proxy_Test extends WP_Ban_TestCase {
 
 	public function test_the_constant_enables_the_proxy_headers() {
 		define( 'WP_BAN_TRUST_PROXY', true );

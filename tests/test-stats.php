@@ -8,7 +8,7 @@
 /**
  * @covers WP_Ban_Stats
  */
-class Test_Ban_Stats extends WP_Ban_TestCase {
+class WP_Ban_Stats_Test extends WP_Ban_TestCase {
 
 	public function test_a_missing_row_reads_as_empty() {
 		$this->assertSame( 0, WP_Ban_Stats::total() );

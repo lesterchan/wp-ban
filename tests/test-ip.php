@@ -8,7 +8,7 @@
 /**
  * @covers WP_Ban_IP
  */
-class Test_Ban_IP extends WP_Ban_TestCase {
+class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 	public function test_wildcards_match_the_whole_subject() {
 		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.100', '192.168.1.100' ) );
