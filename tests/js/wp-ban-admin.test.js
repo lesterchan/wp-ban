@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 /**
  * js/wp-ban-admin.js, driven the way an administrator drives it.
  */
