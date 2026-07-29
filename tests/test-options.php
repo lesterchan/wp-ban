@@ -142,9 +142,21 @@ class Test_Ban_Options extends WP_Ban_TestCase {
 	public function test_the_message_may_be_a_whole_html_document() {
 		$clean = WP_Ban_Options::sanitize( array( 'message' => WP_Ban_Options::default_message() ) );
 
-		foreach ( array( '<html>', '<head>', '<meta charset="utf-8">', '<title>', '<body>' ) as $tag ) {
+		foreach ( array( '<html>', '<head>', '<meta charset="utf-8">', '<title>', '<style>', '<body>' ) as $tag ) {
 			$this->assertStringContainsString( $tag, $clean['message'], "kses stripped {$tag}" );
 		}
+
+		// The one rule the default template carries. kses passes a <style>
+		// element's contents through as text, so it must arrive intact.
+		$this->assertStringContainsString(
+			'#wp-ban-container { text-align: center; font-weight: bold; }',
+			$clean['message'],
+			'kses mangled the default stylesheet'
+		);
+	}
+
+	public function test_the_shipped_template_carries_no_inline_style_attribute() {
+		$this->assertStringNotContainsString( 'style="', WP_Ban_Options::default_message() );
 	}
 
 	public function test_list_to_lines_round_trips() {

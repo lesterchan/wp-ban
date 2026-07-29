@@ -389,8 +389,8 @@ class Test_Ban_Settings extends WP_Ban_TestCase {
 		WP_Ban_Settings::render();
 		$html = (string) ob_get_clean();
 
-		$this->assertSame( 0, substr_count( $html, 'setting-error-ban_bad_range' ) );
-		$this->assertSame( 0, substr_count( $html, 'setting-error-ban_self' ) );
+		$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_bad_range' ) );
+		$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_self' ) );
 	}
 
 	/**

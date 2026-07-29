@@ -46,6 +46,27 @@ class WP_Ban_Settings {
 	const CAPABILITY = 'manage_options';
 
 	/**
+	 * The section explaining how the visitor's address is resolved.
+	 *
+	 * @var string
+	 */
+	const SECTION_PROXY = 'wp_ban_proxy';
+
+	/**
+	 * The six ban list textareas.
+	 *
+	 * @var string
+	 */
+	const SECTION_LISTS = 'wp_ban_lists';
+
+	/**
+	 * The banned message template.
+	 *
+	 * @var string
+	 */
+	const SECTION_MESSAGE = 'wp_ban_message';
+
+	/**
 	 * The statistics table's "plural" name, as passed to WP_List_Table.
 	 *
 	 * @var string
@@ -178,30 +199,31 @@ class WP_Ban_Settings {
 		);
 
 		add_settings_section(
-			'ban_proxy',
+			self::SECTION_PROXY,
 			__( 'Visitor IP Address', 'wp-ban' ),
 			array( __CLASS__, 'section_proxy' ),
 			self::PAGE
 		);
 
 		add_settings_field(
-			'ban_reverse_proxy',
+			'wp_ban_reverse_proxy',
 			__( 'Reverse proxy', 'wp-ban' ),
 			array( __CLASS__, 'field_reverse_proxy' ),
 			self::PAGE,
-			'ban_proxy'
+			self::SECTION_PROXY
 		);
 
 		add_settings_field(
-			'ban_ip_header',
+			'wp_ban_ip_header',
 			__( 'Trusted header', 'wp-ban' ),
 			array( __CLASS__, 'field_ip_header' ),
 			self::PAGE,
-			'ban_proxy'
+			self::SECTION_PROXY,
+			array( 'label_for' => 'wp-ban-ip-header' )
 		);
 
 		add_settings_section(
-			'ban_lists',
+			self::SECTION_LISTS,
 			__( 'Ban Lists', 'wp-ban' ),
 			array( __CLASS__, 'section_lists' ),
 			self::PAGE
@@ -209,34 +231,34 @@ class WP_Ban_Settings {
 
 		foreach ( self::list_fields() as $key => $field ) {
 			add_settings_field(
-				'ban_list_' . $key,
+				'wp_ban_list_' . $key,
 				$field['label'],
 				array( __CLASS__, 'field_list' ),
 				self::PAGE,
-				'ban_lists',
+				self::SECTION_LISTS,
 				array(
 					'key'         => $key,
 					'description' => $field['description'],
 					'examples'    => $field['examples'],
-					'label_for'   => 'ban-list-' . $key,
+					'label_for'   => 'wp-ban-list-' . $key,
 				)
 			);
 		}
 
 		add_settings_section(
-			'ban_message',
+			self::SECTION_MESSAGE,
 			__( 'Banned Message', 'wp-ban' ),
 			array( __CLASS__, 'section_message' ),
 			self::PAGE
 		);
 
 		add_settings_field(
-			'ban_message_template',
+			'wp_ban_message_template',
 			__( 'Template', 'wp-ban' ),
 			array( __CLASS__, 'field_message' ),
 			self::PAGE,
-			'ban_message',
-			array( 'label_for' => 'ban-message' )
+			self::SECTION_MESSAGE,
+			array( 'label_for' => 'wp-ban-message' )
 		);
 	}
 
@@ -300,17 +322,24 @@ class WP_Ban_Settings {
 			__( 'Site URL', 'wp-ban' )        => get_option( 'home' ),
 		);
 
-		echo '<table class="widefat striped" style="max-width:60em;"><tbody>';
+		/*
+		 * A list, not a table. These four are one fact each about the current
+		 * request rather than tabular data, and the <table> this used to be
+		 * needed two inline style attributes to stop it running the width of
+		 * the screen -- which §4.4 rules out and a theme could not have
+		 * overridden anyway.
+		 */
+		echo '<ul>';
 
 		foreach ( $rows as $label => $value ) {
 			printf(
-				'<tr><td style="width:14em;">%s</td><td><strong>%s</strong></td></tr>',
+				'<li>%s: <strong>%s</strong></li>',
 				esc_html( $label ),
 				esc_html( $value )
 			);
 		}
 
-		echo '</tbody></table>';
+		echo '</ul>';
 	}
 
 	/**
@@ -350,7 +379,7 @@ class WP_Ban_Settings {
 		$options = WP_Ban_Options::get();
 
 		printf(
-			'<input type="text" class="regular-text code" id="ban-ip-header" name="%s[ip_header]" value="%s" placeholder="HTTP_CF_CONNECTING_IP" />',
+			'<input type="text" class="regular-text code" id="wp-ban-ip-header" name="%s[ip_header]" value="%s" placeholder="HTTP_CF_CONNECTING_IP" />',
 			esc_attr( WP_Ban_Options::OPTION ),
 			esc_attr( $options['ip_header'] )
 		);
@@ -383,7 +412,7 @@ class WP_Ban_Settings {
 		$key = $args['key'];
 
 		printf(
-			'<textarea id="ban-list-%s" name="%s[lists][%s]" rows="8" cols="50" class="large-text code" dir="ltr">%s</textarea>',
+			'<textarea id="wp-ban-list-%s" name="%s[lists][%s]" rows="8" cols="50" class="large-text code" dir="ltr">%s</textarea>',
 			esc_attr( $key ),
 			esc_attr( WP_Ban_Options::OPTION ),
 			esc_attr( $key ),
@@ -450,25 +479,25 @@ class WP_Ban_Settings {
 	 */
 	public static function field_message() {
 		printf(
-			'<textarea id="ban-message" name="%s[message]" rows="18" cols="100" class="large-text code">%s</textarea>',
+			'<textarea id="wp-ban-message" name="%s[message]" rows="18" cols="100" class="large-text code">%s</textarea>',
 			esc_attr( WP_Ban_Options::OPTION ),
 			esc_textarea( WP_Ban_Options::message() )
 		);
 
 		echo '<p>';
 		printf(
-			'<button type="button" class="button" id="ban-restore-default">%s</button> ',
+			'<button type="button" class="button" id="wp-ban-restore-default">%s</button> ',
 			esc_html__( 'Restore Default Template', 'wp-ban' )
 		);
 		printf(
-			'<button type="button" class="button" id="ban-preview-toggle" data-label-show="%s" data-label-hide="%s">%s</button>',
+			'<button type="button" class="button" id="wp-ban-preview-toggle" data-label-show="%s" data-label-hide="%s">%s</button>',
 			esc_attr__( 'Show Preview', 'wp-ban' ),
 			esc_attr__( 'Show Template', 'wp-ban' ),
 			esc_html__( 'Show Preview', 'wp-ban' )
 		);
 		echo '</p>';
 
-		echo '<div id="ban-preview" hidden></div>';
+		echo '<div id="wp-ban-preview" hidden></div>';
 	}
 
 	/**
@@ -563,7 +592,7 @@ class WP_Ban_Settings {
 		}
 
 		// Post/Redirect/Get, so a refresh does not replay the reset.
-		wp_safe_redirect( add_query_arg( 'ban-reset', $notice, self::url() ) );
+		wp_safe_redirect( add_query_arg( 'wp-ban-reset', $notice, self::url() ) );
 		exit;
 	}
 
@@ -610,7 +639,7 @@ class WP_Ban_Settings {
 	private static function reset_notice() {
 		// Reading a redirect marker to pick a notice changes nothing.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$reset = isset( $_GET['ban-reset'] ) ? sanitize_key( wp_unslash( $_GET['ban-reset'] ) ) : '';
+		$reset = isset( $_GET['wp-ban-reset'] ) ? sanitize_key( wp_unslash( $_GET['wp-ban-reset'] ) ) : '';
 
 		if ( 'all' === $reset ) {
 			wp_admin_notice(

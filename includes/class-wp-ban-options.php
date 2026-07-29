@@ -96,6 +96,11 @@ class WP_Ban_Options {
 	/**
 	 * The default banned message.
 	 *
+	 * A complete document, because it is served instead of WordPress and has no
+	 * theme behind it. The one rule it needs lives in a <style> block rather
+	 * than a style attribute, so a site owner editing this template can change
+	 * it in one place -- and so the plugin ships no inline style anywhere.
+	 *
 	 * @return string
 	 */
 	public static function default_message() {
@@ -103,10 +108,11 @@ class WP_Ban_Options {
 			. '<head>' . "\n"
 			. '<meta charset="utf-8">' . "\n"
 			. '<title>%SITE_NAME% - %SITE_URL%</title>' . "\n"
+			. '<style>#wp-ban-container { text-align: center; font-weight: bold; }</style>' . "\n"
 			. '</head>' . "\n"
 			. '<body>' . "\n"
 			. '<div id="wp-ban-container">' . "\n"
-			. '<p style="text-align: center; font-weight: bold;">' . __( 'You Are Banned.', 'wp-ban' ) . '</p>' . "\n"
+			. '<p>' . __( 'You Are Banned.', 'wp-ban' ) . '</p>' . "\n"
 			. '</div>' . "\n"
 			. '</body>' . "\n"
 			. '</html>';
@@ -309,7 +315,7 @@ class WP_Ban_Options {
 
 			add_settings_error(
 				self::OPTION,
-				'ban_bad_range',
+				'wp_ban_bad_range',
 				sprintf(
 					/* translators: %s: the IP range that was rejected. */
 					__( 'The IP range &#8220;%s&#8221; is not two valid addresses of the same type, so it was not saved.', 'wp-ban' ),
@@ -436,7 +442,7 @@ class WP_Ban_Options {
 	private static function self_ban_notice( $message, $value ) {
 		add_settings_error(
 			self::OPTION,
-			'ban_self',
+			'wp_ban_self',
 			sprintf( $message, esc_html( $value ) ),
 			'warning'
 		);

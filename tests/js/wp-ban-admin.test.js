@@ -50,16 +50,16 @@ async function click( id ) {
 
 describe( 'Restore Default Template', () => {
 	it( 'replaces the textarea with the default from PHP', async () => {
-		await click( 'ban-restore-default' );
+		await click( 'wp-ban-restore-default' );
 
-		expect( document.getElementById( 'ban-message' ).value ).toBe( L10N.defaultTemplate );
+		expect( document.getElementById( 'wp-ban-message' ).value ).toBe( L10N.defaultTemplate );
 	} );
 
 	it( 'fires a bubbling change event so the browser sees the form as dirty', async () => {
 		const seen = vi.fn();
 		document.addEventListener( 'change', seen );
 
-		await click( 'ban-restore-default' );
+		await click( 'wp-ban-restore-default' );
 
 		expect( seen ).toHaveBeenCalledTimes( 1 );
 
@@ -67,7 +67,7 @@ describe( 'Restore Default Template', () => {
 	} );
 
 	it( 'does not call the endpoint', async () => {
-		await click( 'ban-restore-default' );
+		await click( 'wp-ban-restore-default' );
 
 		expect( window.fetch ).not.toHaveBeenCalled();
 	} );
@@ -81,7 +81,7 @@ describe( 'the request', () => {
 	 * both field names are load-bearing, not implementation detail.
 	 */
 	it( 'posts the action and nonce field names the PHP side reads', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
 		expect( window.fetch ).toHaveBeenCalledTimes( 1 );
 
@@ -95,7 +95,7 @@ describe( 'the request', () => {
 	} );
 
 	it( 'sends cookies and a form-encoded content type', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
 		const [ , init ] = window.fetch.mock.calls[ 0 ];
 
@@ -129,9 +129,9 @@ describe( 'showing the preview', () => {
 			} ),
 		);
 
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		const preview = document.getElementById( 'ban-preview' );
+		const preview = document.getElementById( 'wp-ban-preview' );
 
 		expect( preview.querySelector( '#wp-ban-container' ) ).not.toBeNull();
 		expect( preview.textContent ).toContain( 'Banned.' );
@@ -140,11 +140,11 @@ describe( 'showing the preview', () => {
 	} );
 
 	it( 'swaps the textarea for the preview and flips the label', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview' ).hidden ).toBe( false );
-		expect( document.getElementById( 'ban-message' ).hidden ).toBe( true );
-		expect( document.getElementById( 'ban-preview-toggle' ).textContent ).toBe( 'Show Template' );
+		expect( document.getElementById( 'wp-ban-preview' ).hidden ).toBe( false );
+		expect( document.getElementById( 'wp-ban-message' ).hidden ).toBe( true );
+		expect( document.getElementById( 'wp-ban-preview-toggle' ).textContent ).toBe( 'Show Template' );
 	} );
 
 	it( 'falls back to the body when the message has no container', async () => {
@@ -154,15 +154,15 @@ describe( 'showing the preview', () => {
 			} ),
 		);
 
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview' ).textContent ).toContain( 'No container here.' );
+		expect( document.getElementById( 'wp-ban-preview' ).textContent ).toContain( 'No container here.' );
 	} );
 
 	it( 're-enables the button afterwards', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview-toggle' ).disabled ).toBe( false );
+		expect( document.getElementById( 'wp-ban-preview-toggle' ).disabled ).toBe( false );
 	} );
 } );
 
@@ -172,50 +172,50 @@ describe( 'when the request fails', () => {
 	} );
 
 	it( 'shows the localised error rather than the raw response', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		const preview = document.getElementById( 'ban-preview' );
+		const preview = document.getElementById( 'wp-ban-preview' );
 
 		expect( preview.textContent ).toBe( L10N.previewError );
 		expect( preview.textContent ).not.toContain( '-1' );
 	} );
 
 	it( 'leaves the template visible so nothing typed is lost', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-message' ).hidden ).toBe( false );
+		expect( document.getElementById( 'wp-ban-message' ).hidden ).toBe( false );
 	} );
 
 	it( 're-enables the button so the user can retry', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview-toggle' ).disabled ).toBe( false );
+		expect( document.getElementById( 'wp-ban-preview-toggle' ).disabled ).toBe( false );
 	} );
 
 	it( 'survives a rejected fetch as well as a bad status', async () => {
 		window.fetch = vi.fn( () => Promise.reject( new Error( 'offline' ) ) );
 
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview' ).textContent ).toBe( L10N.previewError );
-		expect( document.getElementById( 'ban-preview-toggle' ).disabled ).toBe( false );
+		expect( document.getElementById( 'wp-ban-preview' ).textContent ).toBe( L10N.previewError );
+		expect( document.getElementById( 'wp-ban-preview-toggle' ).disabled ).toBe( false );
 	} );
 } );
 
 describe( 'toggling back', () => {
 	it( 'restores the template view and clears the preview', async () => {
-		await click( 'ban-preview-toggle' );
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
-		expect( document.getElementById( 'ban-preview' ).hidden ).toBe( true );
-		expect( document.getElementById( 'ban-preview' ).textContent ).toBe( '' );
-		expect( document.getElementById( 'ban-message' ).hidden ).toBe( false );
-		expect( document.getElementById( 'ban-preview-toggle' ).textContent ).toBe( 'Show Preview' );
+		expect( document.getElementById( 'wp-ban-preview' ).hidden ).toBe( true );
+		expect( document.getElementById( 'wp-ban-preview' ).textContent ).toBe( '' );
+		expect( document.getElementById( 'wp-ban-message' ).hidden ).toBe( false );
+		expect( document.getElementById( 'wp-ban-preview-toggle' ).textContent ).toBe( 'Show Preview' );
 	} );
 
 	it( 'does not call the endpoint again', async () => {
-		await click( 'ban-preview-toggle' );
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
 		expect( window.fetch ).toHaveBeenCalledTimes( 1 );
 	} );
@@ -228,9 +228,9 @@ describe( 'the delegated listener', () => {
 		document.body.innerHTML = '<div></div>';
 		document.querySelector( 'div' ).innerHTML = settingsMarkup();
 
-		await click( 'ban-restore-default' );
+		await click( 'wp-ban-restore-default' );
 
-		expect( document.getElementById( 'ban-message' ).value ).toBe( L10N.defaultTemplate );
+		expect( document.getElementById( 'wp-ban-message' ).value ).toBe( L10N.defaultTemplate );
 	} );
 
 	it( 'ignores clicks on anything else', async () => {
@@ -239,11 +239,11 @@ describe( 'the delegated listener', () => {
 		await click( 'unrelated' );
 
 		expect( window.fetch ).not.toHaveBeenCalled();
-		expect( document.getElementById( 'ban-message' ).value ).toBe( 'stored template' );
+		expect( document.getElementById( 'wp-ban-message' ).value ).toBe( 'stored template' );
 	} );
 
 	it( 'is attached exactly once', async () => {
-		await click( 'ban-preview-toggle' );
+		await click( 'wp-ban-preview-toggle' );
 
 		// A second evaluation of the script would make this 2, and every
 		// handler would fire twice.

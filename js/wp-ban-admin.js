@@ -15,7 +15,7 @@
 	}
 
 	function restoreDefault() {
-		const textarea = byId( 'ban-message' );
+		const textarea = byId( 'wp-ban-message' );
 
 		if ( textarea && l10n.defaultTemplate ) {
 			textarea.value = l10n.defaultTemplate;
@@ -89,18 +89,18 @@
 			return;
 		}
 
-		if ( 'ban-restore-default' === target.id ) {
+		if ( 'wp-ban-restore-default' === target.id ) {
 			event.preventDefault();
 			restoreDefault();
 
 			return;
 		}
 
-		if ( 'ban-preview-toggle' === target.id ) {
+		if ( 'wp-ban-preview-toggle' === target.id ) {
 			event.preventDefault();
 
-			const textarea = byId( 'ban-message' );
-			const preview = byId( 'ban-preview' );
+			const textarea = byId( 'wp-ban-message' );
+			const preview = byId( 'wp-ban-preview' );
 
 			if ( ! textarea || ! preview ) {
 				return;
