@@ -89,10 +89,14 @@ class WP_Ban_Stats_Table extends WP_List_Table {
 	 * printed in and nothing else, and neither reaches anything but the
 	 * comparison below, having first been checked against a fixed list.
 	 *
+	 * That is why phpcs.xml relaxes WordPress.Security.NonceVerification for
+	 * *-table.php across all nineteen plugins. The exclusion is scoped to list
+	 * tables so it cannot quietly cover a real handler; anything in this file
+	 * that did change state would still need its nonce checked by hand.
+	 *
 	 * @return array{0:string,1:string} Column key, and 'asc' or 'desc'.
 	 */
 	private static function requested_sort() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only sort navigation, not form processing; the sniff has no way to express that and core's own list tables read these keys identically. See the docblock above.
 		$request = wp_unslash( $_GET );
 
 		$candidate = isset( $request['orderby'] ) ? sanitize_key( $request['orderby'] ) : '';
