@@ -80,6 +80,31 @@ class WP_Ban_Stats_Table extends WP_List_Table {
 	}
 
 	/**
+	 * The sort this request asked for, checked against the sortable columns.
+	 *
+	 * A sortable column header is a link, and core builds it by swapping
+	 * orderby and order on the current URL -- so it carries no nonce, there is
+	 * none to verify, and every core list table reads these same two keys the
+	 * same way. Both values are navigation: they decide the order rows are
+	 * printed in and nothing else, and neither reaches anything but the
+	 * comparison below, having first been checked against a fixed list.
+	 *
+	 * @return array{0:string,1:string} Column key, and 'asc' or 'desc'.
+	 */
+	private static function requested_sort() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only sort navigation, not form processing; the sniff has no way to express that and core's own list tables read these keys identically. See the docblock above.
+		$request = wp_unslash( $_GET );
+
+		$candidate = isset( $request['orderby'] ) ? sanitize_key( $request['orderby'] ) : '';
+		$orderby   = in_array( $candidate, array( 'ip', 'attempts' ), true ) ? $candidate : 'attempts';
+
+		$candidate = isset( $request['order'] ) ? sanitize_key( $request['order'] ) : '';
+		$order     = 'asc' === $candidate ? 'asc' : 'desc';
+
+		return array( $orderby, $order );
+	}
+
+	/**
 	 * Build, sort and paginate the rows.
 	 *
 	 * @return void
@@ -95,21 +120,7 @@ class WP_Ban_Stats_Table extends WP_List_Table {
 			);
 		}
 
-		$orderby = 'attempts';
-		$order   = 'desc';
-
-		// Reading the sort from the query string to decide what to render is
-		// not a state change, so there is no nonce to check here.
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_GET['orderby'] ) ) {
-			$candidate = sanitize_key( wp_unslash( $_GET['orderby'] ) );
-			$orderby   = in_array( $candidate, array( 'ip', 'attempts' ), true ) ? $candidate : $orderby;
-		}
-
-		if ( isset( $_GET['order'] ) ) {
-			$order = 'asc' === strtolower( sanitize_key( wp_unslash( $_GET['order'] ) ) ) ? 'asc' : 'desc';
-		}
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		list( $orderby, $order ) = self::requested_sort();
 
 		usort(
 			$items,

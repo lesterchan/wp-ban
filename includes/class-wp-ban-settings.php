@@ -570,7 +570,6 @@ class WP_Ban_Settings {
 			return;
 		}
 
-		$table  = null;
 		$action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
 		$action = ( '' === $action || '-1' === $action ) && isset( $_REQUEST['action2'] )
 			? sanitize_key( wp_unslash( $_REQUEST['action2'] ) )
@@ -598,8 +597,18 @@ class WP_Ban_Settings {
 			$notice = 'selected';
 		}
 
+		/*
+		 * The notice travels in a short-lived transient rather than a query
+		 * argument. A marker in the URL has to be read back out of $_GET on the
+		 * next request, where there is no nonce to check it against and no way
+		 * to tell the plugin's own redirect from a link someone was sent -- and
+		 * it survives being bookmarked, so the screen claims to have reset
+		 * something every time that bookmark is opened.
+		 */
+		set_transient( self::notice_key(), $notice, MINUTE_IN_SECONDS );
+
 		// Post/Redirect/Get, so a refresh does not replay the reset.
-		wp_safe_redirect( add_query_arg( 'wp-ban-reset', $notice, self::url() ) );
+		wp_safe_redirect( self::url() );
 		exit;
 	}
 
@@ -639,14 +648,31 @@ class WP_Ban_Settings {
 	}
 
 	/**
+	 * Where the reset notice waits between the redirect and the render.
+	 *
+	 * Per user, so two administrators resetting at once do not read each
+	 * other's notice.
+	 *
+	 * @return string
+	 */
+	private static function notice_key() {
+		return 'wp_ban_notice_' . get_current_user_id();
+	}
+
+	/**
 	 * Print the notice left behind by a statistics reset.
 	 *
 	 * @return void
 	 */
 	private static function reset_notice() {
-		// Reading a redirect marker to pick a notice changes nothing.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$reset = isset( $_GET['wp-ban-reset'] ) ? sanitize_key( wp_unslash( $_GET['wp-ban-reset'] ) ) : '';
+		$reset = (string) get_transient( self::notice_key() );
+
+		if ( '' === $reset ) {
+			return;
+		}
+
+		// Shown once. A refresh has nothing left to report.
+		delete_transient( self::notice_key() );
 
 		if ( 'all' === $reset ) {
 			wp_admin_notice(

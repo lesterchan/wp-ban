@@ -210,7 +210,76 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		$table = new WP_Ban_Stats_Table();
 		$table->prepare_items();
 
-		$this->assertSame( '203.0.113.2', $table->items[0]['ip'] );
+		$this->assertSame( '203.0.113.2', $table->items[0]['ip'], 'the busiest address belongs at the top' );
+	}
+
+	/**
+	 * The sort a column header link asks for is honoured.
+	 *
+	 * Read straight from the query string, because that is what core's own
+	 * sortable headers put there -- they swap orderby and order on the current
+	 * URL and carry no nonce.
+	 */
+	public function test_the_stats_table_honours_the_sort_the_column_headers_ask_for() {
+		WP_Ban_Stats::record( '203.0.113.9' );
+		WP_Ban_Stats::record( '203.0.113.1' );
+		WP_Ban_Stats::record( '203.0.113.1' );
+
+		$_GET['orderby'] = 'ip';
+		$_GET['order']   = 'asc';
+
+		$table = new WP_Ban_Stats_Table();
+		$table->prepare_items();
+
+		$this->assertSame( '203.0.113.1', $table->items[0]['ip'], 'ascending sort by address was ignored' );
+
+		$_GET['order'] = 'desc';
+
+		$table = new WP_Ban_Stats_Table();
+		$table->prepare_items();
+
+		$this->assertSame( '203.0.113.9', $table->items[0]['ip'], 'descending sort by address was ignored' );
+	}
+
+	/**
+	 * Anything that is not one of the two sortable columns is discarded.
+	 */
+	public function test_an_unknown_sort_column_falls_back_to_attempts() {
+		WP_Ban_Stats::record( '203.0.113.1' );
+		WP_Ban_Stats::record( '203.0.113.2' );
+		WP_Ban_Stats::record( '203.0.113.2' );
+
+		$_GET['orderby'] = 'DROP TABLE';
+		$_GET['order']   = 'sideways';
+
+		$table = new WP_Ban_Stats_Table();
+		$table->prepare_items();
+
+		$this->assertSame( '203.0.113.2', $table->items[0]['ip'], 'an unknown orderby must fall back to attempts, descending' );
+	}
+
+	/**
+	 * The notice after a reset survives the redirect without a query argument.
+	 *
+	 * It used to travel as ?wp-ban-reset=all, which meant reading a marker back
+	 * out of $_GET with no nonce to check it against -- and which claimed a
+	 * reset had happened every time that URL was opened again from a bookmark.
+	 */
+	public function test_the_reset_notice_is_shown_once_and_then_forgotten() {
+		set_transient( 'wp_ban_notice_' . get_current_user_id(), 'all', MINUTE_IN_SECONDS );
+
+		$this->assertStringContainsString( 'All ban stats were reset.', $this->render() );
+
+		$this->assertFalse(
+			get_transient( 'wp_ban_notice_' . get_current_user_id() ),
+			'the notice must be cleared once it has been shown'
+		);
+
+		$this->assertStringNotContainsString(
+			'All ban stats were reset.',
+			$this->render(),
+			'a refresh must not repeat the notice'
+		);
 	}
 
 	/**

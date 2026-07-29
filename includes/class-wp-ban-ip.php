@@ -51,7 +51,6 @@ class WP_Ban_IP {
 		$header  = (string) $options['ip_header'];
 
 		if ( '' !== $header && ! empty( $_SERVER[ $header ] ) ) {
-			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- $header is validated to [A-Za-z0-9_]+ on save, and first_valid_ip() validates the value.
 			$candidate = self::first_valid_ip( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ), false );
 
 			if ( '' !== $candidate ) {
@@ -82,7 +81,6 @@ class WP_Ban_IP {
 					continue;
 				}
 
-				// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- first_valid_ip() validates every candidate with FILTER_VALIDATE_IP.
 				$candidate = self::first_valid_ip( sanitize_text_field( wp_unslash( $_SERVER[ $name ] ) ) );
 
 				if ( '' !== $candidate ) {
