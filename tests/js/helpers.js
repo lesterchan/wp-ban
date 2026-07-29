@@ -33,7 +33,7 @@ export function readPluginFile( name ) {
 }
 
 /**
- * The fields Ban_Settings::field_message() renders.
+ * The fields WP_Ban_Settings::field_message() renders.
  *
  * @return {string} Markup.
  */

@@ -6,9 +6,9 @@
  */
 
 /**
- * @covers Ban_Blocker
+ * @covers WP_Ban_Blocker
  */
-class Test_Ban_Blocker extends Ban_TestCase {
+class Test_Ban_Blocker extends WP_Ban_TestCase {
 
 	public function test_a_listed_ip_is_banned() {
 		$_SERVER['REMOTE_ADDR'] = '192.168.77.10';
@@ -113,8 +113,8 @@ class Test_Ban_Blocker extends Ban_TestCase {
 		$this->run_ban_check();
 		$this->run_ban_check();
 
-		$this->assertSame( 2, Ban_Stats::attempts_for( '192.168.77.10' ) );
-		$this->assertSame( 2, Ban_Stats::total() );
+		$this->assertSame( 2, WP_Ban_Stats::attempts_for( '192.168.77.10' ) );
+		$this->assertSame( 2, WP_Ban_Stats::total() );
 	}
 
 	public function test_a_visitor_who_passes_records_nothing() {
@@ -123,8 +123,8 @@ class Test_Ban_Blocker extends Ban_TestCase {
 
 		$this->run_ban_check();
 
-		$this->assertSame( 0, Ban_Stats::total() );
-		$this->assertSame( 0, Ban_Stats::attempts_for( '203.0.113.1' ) );
+		$this->assertSame( 0, WP_Ban_Stats::total() );
+		$this->assertSame( 0, WP_Ban_Stats::attempts_for( '203.0.113.1' ) );
 	}
 
 	public function test_the_check_can_be_switched_off_by_filter() {
@@ -146,14 +146,14 @@ class Test_Ban_Blocker extends Ban_TestCase {
 
 		$listener = static function ( $ip, $status ) use ( &$seen ) {
 			$seen = $status;
-			throw new Ban_Denied_Exception( (string) $ip );
+			throw new WP_Ban_Denied_Exception( (string) $ip );
 		};
 
 		add_action( 'wp_ban_denied', $listener, 10, 2 );
 
 		try {
-			Ban_Blocker::check();
-		} catch ( Ban_Denied_Exception $e ) {
+			WP_Ban_Blocker::check();
+		} catch ( WP_Ban_Denied_Exception $e ) {
 			unset( $e );
 		}
 
@@ -162,8 +162,8 @@ class Test_Ban_Blocker extends Ban_TestCase {
 		add_filter( 'wp_ban_status_code', static fn() => 200 );
 
 		try {
-			Ban_Blocker::check();
-		} catch ( Ban_Denied_Exception $e ) {
+			WP_Ban_Blocker::check();
+		} catch ( WP_Ban_Denied_Exception $e ) {
 			unset( $e );
 		}
 
@@ -182,7 +182,7 @@ class Test_Ban_Blocker extends Ban_TestCase {
 			)
 		);
 
-		$preview = Ban_Blocker::preview();
+		$preview = WP_Ban_Blocker::preview();
 
 		$this->assertStringContainsString( '203.0.113.44', $preview );
 

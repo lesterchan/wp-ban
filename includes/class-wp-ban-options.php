@@ -23,7 +23,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Reads, normalises and migrates the plugin's settings.
  */
-class Ban_Options {
+class WP_Ban_Options {
 
 	/**
 	 * Name of the single option row holding every setting.
@@ -193,7 +193,7 @@ class Ban_Options {
 		 * The settings form posts a textarea, but the sanitize callback also
 		 * runs for programmatic writes -- add_option() with the defaults on
 		 * activation, or the common
-		 * `$o = Ban_Options::get(); $o['x'] = ...; update_option( ... )`.
+		 * `$o = WP_Ban_Options::get(); $o['x'] = ...; update_option( ... )`.
 		 * Those pass a list that is already split, and casting it to a string
 		 * would warn and throw every entry away.
 		 */
@@ -282,7 +282,7 @@ class Ban_Options {
 		$out = array();
 
 		foreach ( $ranges as $range ) {
-			if ( Ban_IP::parse_range( $range ) ) {
+			if ( WP_Ban_IP::parse_range( $range ) ) {
 				$out[] = $range;
 				continue;
 			}
@@ -323,8 +323,8 @@ class Ban_Options {
 			return $clean;
 		}
 
-		$ip       = Ban_IP::address();
-		$hostname = Ban_IP::hostname( $ip );
+		$ip       = WP_Ban_IP::address();
+		$hostname = WP_Ban_IP::hostname( $ip );
 
 		$checks = array(
 			'ips'         => array(
@@ -338,7 +338,7 @@ class Ban_Options {
 				__( 'This host name &#8220;%s&#8221; is yours, so it was not added to the ban list.', 'wp-ban' ),
 			),
 			'user_agents' => array(
-				Ban_IP::user_agent(),
+				WP_Ban_IP::user_agent(),
 				/* translators: %s: the user agent that was not added. */
 				__( 'This user agent &#8220;%s&#8221; is the one you are browsing with, so it was not added to the ban list.', 'wp-ban' ),
 			),
@@ -354,7 +354,7 @@ class Ban_Options {
 			$kept = array();
 
 			foreach ( $clean['lists'][ $key ] as $pattern ) {
-				if ( Ban_IP::matches_wildcard( $pattern, $subject ) ) {
+				if ( WP_Ban_IP::matches_wildcard( $pattern, $subject ) ) {
 					self::self_ban_notice( $message, $pattern );
 					continue;
 				}
@@ -387,9 +387,9 @@ class Ban_Options {
 		$kept = array();
 
 		foreach ( $clean['lists']['ips_range'] as $range ) {
-			$bounds = Ban_IP::parse_range( $range );
+			$bounds = WP_Ban_IP::parse_range( $range );
 
-			if ( $bounds && '' !== $ip && Ban_IP::in_range( $ip, $bounds[0], $bounds[1] ) ) {
+			if ( $bounds && '' !== $ip && WP_Ban_IP::in_range( $ip, $bounds[0], $bounds[1] ) ) {
 				self::self_ban_notice(
 					/* translators: %s: the IP range that was not added. */
 					__( 'Your IP falls inside the range &#8220;%s&#8221;, so it was not added to the ban list.', 'wp-ban' ),
@@ -433,7 +433,7 @@ class Ban_Options {
 
 		foreach ( $urls as $url ) {
 			foreach ( array( $url, $url . '/' ) as $candidate ) {
-				if ( Ban_IP::matches_wildcard( $pattern, $candidate ) ) {
+				if ( WP_Ban_IP::matches_wildcard( $pattern, $candidate ) ) {
 					return true;
 				}
 			}
@@ -519,7 +519,7 @@ class Ban_Options {
 
 		delete_option( 'banned_message' );
 
-		Ban_Stats::demote_autoload();
+		WP_Ban_Stats::demote_autoload();
 
 		update_option( self::DB_VERSION_OPTION, self::DB_VERSION );
 

@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers and renders Settings -> Ban.
  */
-class Ban_Settings {
+class WP_Ban_Settings {
 
 	/**
 	 * Settings page slug.
@@ -26,9 +26,24 @@ class Ban_Settings {
 	/**
 	 * Settings group passed to register_setting()/settings_fields().
 	 *
+	 * The group is spelled the same as the row it writes, so there is one
+	 * string to remember rather than two that have to be kept in step.
+	 *
 	 * @var string
 	 */
-	const GROUP = 'ban_options_group';
+	const GROUP = 'wp_ban_options';
+
+	/**
+	 * Capability required to reach this plugin's admin surface.
+	 *
+	 * WP-Ban has no custom capability of its own: deciding who may not read a
+	 * site is a site configuration decision, so it takes the same capability
+	 * as every other settings screen. Every check goes through
+	 * capability(), never through the constant directly.
+	 *
+	 * @var string
+	 */
+	const CAPABILITY = 'manage_options';
 
 	/**
 	 * The statistics table's "plural" name, as passed to WP_List_Table.
@@ -102,6 +117,28 @@ class Ban_Settings {
 	}
 
 	/**
+	 * The capability required for one part of the admin surface.
+	 *
+	 * One filter for every check, so a site that delegates ban management to a
+	 * role below administrator does it in one place and cannot accidentally
+	 * open the settings form while closing the preview.
+	 *
+	 * @param string $context One of 'screen', 'stats' or 'preview'.
+	 * @return string
+	 */
+	public static function capability( $context ) {
+		/**
+		 * Filters the capability required to reach WP-Ban's admin surface.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param string $capability Capability name.
+		 * @param string $context    One of 'screen', 'stats' or 'preview'.
+		 */
+		return (string) apply_filters( 'wp_ban_capability', self::CAPABILITY, $context );
+	}
+
+	/**
 	 * Register the submenu page.
 	 *
 	 * @return void
@@ -110,7 +147,7 @@ class Ban_Settings {
 		self::$hook_suffix = add_options_page(
 			__( 'Ban', 'wp-ban' ),
 			__( 'Ban', 'wp-ban' ),
-			'manage_options',
+			self::capability( 'screen' ),
 			self::PAGE,
 			array( __CLASS__, 'render' )
 		);
@@ -128,15 +165,15 @@ class Ban_Settings {
 	public static function register() {
 		// Activation does not fire when a plugin is updated, so the migration
 		// is driven from here too.
-		Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_migrate();
 
 		register_setting(
 			self::GROUP,
-			Ban_Options::OPTION,
+			WP_Ban_Options::OPTION,
 			array(
 				'type'              => 'array',
-				'sanitize_callback' => array( 'Ban_Options', 'sanitize' ),
-				'default'           => Ban_Options::defaults(),
+				'sanitize_callback' => array( 'WP_Ban_Options', 'sanitize' ),
+				'default'           => WP_Ban_Options::defaults(),
 			)
 		);
 
@@ -249,8 +286,8 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function section_proxy() {
-		$ip       = Ban_IP::address();
-		$hostname = Ban_IP::hostname( $ip );
+		$ip       = WP_Ban_IP::address();
+		$hostname = WP_Ban_IP::hostname( $ip );
 
 		echo '<p>';
 		esc_html_e( 'Please do not ban yourself. These are your own details as WP-Ban sees them right now:', 'wp-ban' );
@@ -259,7 +296,7 @@ class Ban_Settings {
 		$rows = array(
 			__( 'Your IP', 'wp-ban' )         => '' === $ip ? __( 'Unknown', 'wp-ban' ) : $ip,
 			__( 'Your host name', 'wp-ban' )  => '' === $hostname ? __( 'Unknown', 'wp-ban' ) : $hostname,
-			__( 'Your user agent', 'wp-ban' ) => '' === Ban_IP::user_agent() ? __( 'Unknown', 'wp-ban' ) : Ban_IP::user_agent(),
+			__( 'Your user agent', 'wp-ban' ) => '' === WP_Ban_IP::user_agent() ? __( 'Unknown', 'wp-ban' ) : WP_Ban_IP::user_agent(),
 			__( 'Site URL', 'wp-ban' )        => get_option( 'home' ),
 		);
 
@@ -282,11 +319,11 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function field_reverse_proxy() {
-		$options = Ban_Options::get();
+		$options = WP_Ban_Options::get();
 
 		printf(
 			'<label><input type="checkbox" name="%s[reverse_proxy]" value="1"%s /> %s</label>',
-			esc_attr( Ban_Options::OPTION ),
+			esc_attr( WP_Ban_Options::OPTION ),
 			checked( ! empty( $options['reverse_proxy'] ), true, false ),
 			esc_html__( 'This site is behind a reverse proxy.', 'wp-ban' )
 		);
@@ -310,11 +347,11 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function field_ip_header() {
-		$options = Ban_Options::get();
+		$options = WP_Ban_Options::get();
 
 		printf(
 			'<input type="text" class="regular-text code" id="ban-ip-header" name="%s[ip_header]" value="%s" placeholder="HTTP_CF_CONNECTING_IP" />',
-			esc_attr( Ban_Options::OPTION ),
+			esc_attr( WP_Ban_Options::OPTION ),
 			esc_attr( $options['ip_header'] )
 		);
 
@@ -348,9 +385,9 @@ class Ban_Settings {
 		printf(
 			'<textarea id="ban-list-%s" name="%s[lists][%s]" rows="8" cols="50" class="large-text code" dir="ltr">%s</textarea>',
 			esc_attr( $key ),
-			esc_attr( Ban_Options::OPTION ),
+			esc_attr( WP_Ban_Options::OPTION ),
 			esc_attr( $key ),
-			esc_textarea( Ban_Options::list_to_lines( $key ) )
+			esc_textarea( WP_Ban_Options::list_to_lines( $key ) )
 		);
 
 		printf( '<p class="description">%s</p>', esc_html( $args['description'] ) );
@@ -414,8 +451,8 @@ class Ban_Settings {
 	public static function field_message() {
 		printf(
 			'<textarea id="ban-message" name="%s[message]" rows="18" cols="100" class="large-text code">%s</textarea>',
-			esc_attr( Ban_Options::OPTION ),
-			esc_textarea( Ban_Options::message() )
+			esc_attr( WP_Ban_Options::OPTION ),
+			esc_textarea( WP_Ban_Options::message() )
 		);
 
 		echo '<p>';
@@ -461,7 +498,7 @@ class Ban_Settings {
 			array(
 				'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
 				'nonce'           => wp_create_nonce( 'wp-ban_preview' ),
-				'defaultTemplate' => Ban_Options::default_message(),
+				'defaultTemplate' => WP_Ban_Options::default_message(),
 				'previewError'    => __( 'The preview could not be loaded.', 'wp-ban' ),
 			)
 		);
@@ -476,13 +513,13 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function ajax_preview() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( self::capability( 'preview' ) ) ) {
 			wp_die( -1, 403 );
 		}
 
 		check_ajax_referer( 'wp-ban_preview' );
 
-		echo wp_kses( Ban_Blocker::preview(), Ban_Options::allowed_html() );
+		echo wp_kses( WP_Ban_Blocker::preview(), WP_Ban_Options::allowed_html() );
 
 		wp_die();
 	}
@@ -493,7 +530,7 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function handle_stats_actions() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( self::capability( 'stats' ) ) ) {
 			return;
 		}
 
@@ -512,7 +549,7 @@ class Ban_Settings {
 		check_admin_referer( self::STATS_NONCE );
 
 		if ( $reset_all ) {
-			Ban_Stats::reset();
+			WP_Ban_Stats::reset();
 			$notice = 'all';
 		} else {
 			$ips = isset( $_REQUEST['ips'] ) ? array_map( 'sanitize_text_field', (array) wp_unslash( $_REQUEST['ips'] ) ) : array();
@@ -521,7 +558,7 @@ class Ban_Settings {
 				return;
 			}
 
-			Ban_Stats::forget( $ips );
+			WP_Ban_Stats::forget( $ips );
 			$notice = 'selected';
 		}
 
@@ -536,11 +573,11 @@ class Ban_Settings {
 	 * @return void
 	 */
 	public static function render() {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( self::capability( 'screen' ) ) ) {
 			return;
 		}
 
-		require_once WP_BAN_DIR . 'includes/class-ban-stats-table.php';
+		require_once WP_BAN_DIR . 'includes/class-wp-ban-stats-table.php';
 
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Ban Options', 'wp-ban' ) );
@@ -594,7 +631,7 @@ class Ban_Settings {
 	 * @return void
 	 */
 	private static function render_stats() {
-		$table = new Ban_Stats_Table();
+		$table = new WP_Ban_Stats_Table();
 		$table->prepare_items();
 
 		printf( '<h2>%s</h2>', esc_html__( 'Ban Stats', 'wp-ban' ) );
@@ -602,7 +639,7 @@ class Ban_Settings {
 		printf(
 			'<p>%s <strong>%s</strong></p>',
 			esc_html__( 'Total attempts turned away:', 'wp-ban' ),
-			esc_html( number_format_i18n( Ban_Stats::total() ) )
+			esc_html( number_format_i18n( WP_Ban_Stats::total() ) )
 		);
 
 		// No wp_nonce_field() here: $table->display() emits the bulk nonce this

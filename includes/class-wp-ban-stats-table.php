@@ -18,7 +18,7 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
  * rendered every recorded address on one page: a site that had turned away a
  * few thousand bots got a settings screen it could not load.
  */
-class Ban_Stats_Table extends WP_List_Table {
+class WP_Ban_Stats_Table extends WP_List_Table {
 
 	/**
 	 * Constructor.
@@ -27,9 +27,9 @@ class Ban_Stats_Table extends WP_List_Table {
 		parent::__construct(
 			array(
 				'singular' => 'ban-stat',
-				// Ban_Settings::STATS_NONCE is derived from this; the bulk
+				// WP_Ban_Settings::STATS_NONCE is derived from this; the bulk
 				// nonce WP_List_Table emits is "bulk-{$plural}".
-				'plural'   => Ban_Settings::STATS_PLURAL,
+				'plural'   => WP_Ban_Settings::STATS_PLURAL,
 				'ajax'     => false,
 			)
 		);
@@ -85,7 +85,7 @@ class Ban_Stats_Table extends WP_List_Table {
 	 * @return void
 	 */
 	public function prepare_items() {
-		$stats = Ban_Stats::get();
+		$stats = WP_Ban_Stats::get();
 		$items = array();
 
 		foreach ( $stats['users'] as $ip => $attempts ) {
@@ -173,7 +173,7 @@ class Ban_Stats_Table extends WP_List_Table {
 	 * @return string
 	 */
 	public function column_hostname( $item ) {
-		$hostname = Ban_IP::hostname( $item['ip'] );
+		$hostname = WP_Ban_IP::hostname( $item['ip'] );
 
 		return '' === $hostname || $hostname === $item['ip'] ? '&#8212;' : esc_html( $hostname );
 	}

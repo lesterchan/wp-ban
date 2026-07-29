@@ -4,8 +4,8 @@
  * Plugin URI: https://lesterchan.net/portfolio/programming/php/
  * Description: Ban users by IP, IP range, host name, user agent and referrer URL from visiting your WordPress blog.
  * Version: 2.0.0
- * Requires at least: 6.0
- * Requires PHP: 7.4
+ * Requires at least: 6.8
+ * Requires PHP: 8.2
  * Author: Lester 'GaMerZ' Chan
  * Author URI: https://lesterchan.net
  * License: GPLv2 or later
@@ -17,7 +17,7 @@
  */
 
 /*
-	Copyright 2026 Lester Chan  (email : lesterchan@gmail.com)
+	Copyright 2026  Lester Chan  (email : lesterchan@gmail.com)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -37,9 +37,19 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * WP-Ban version.
+ * WP-Ban version. The last-run value is kept in the wp_ban_version row.
  */
 define( 'WP_BAN_VERSION', '2.0.0' );
+
+/**
+ * Schema counter. Bumped only when the stored rows need reshaping.
+ */
+define( 'WP_BAN_DB_VERSION', '2' );
+
+/**
+ * WP-Ban slug, which is also the text domain.
+ */
+define( 'WP_BAN_SLUG', 'wp-ban' );
 
 /**
  * WP-Ban main file.
@@ -47,12 +57,12 @@ define( 'WP_BAN_VERSION', '2.0.0' );
 define( 'WP_BAN_MAIN_FILE', __FILE__ );
 
 /**
- * Absolute path to the plugin directory, with a trailing slash.
+ * WP-Ban directory, with a trailing slash.
  */
 define( 'WP_BAN_DIR', plugin_dir_path( __FILE__ ) );
 
 /**
- * URL of the plugin directory, with a trailing slash.
+ * WP-Ban URL, with a trailing slash.
  *
  * Derived rather than hardcoded: before 2.0.0 the plugin built its admin URL
  * from the literal string 'wp-ban/ban-options.php', so installing under any
@@ -60,11 +70,11 @@ define( 'WP_BAN_DIR', plugin_dir_path( __FILE__ ) );
  */
 define( 'WP_BAN_URL', plugin_dir_url( __FILE__ ) );
 
-require_once __DIR__ . '/includes/class-ban-options.php';
-require_once __DIR__ . '/includes/class-ban-ip.php';
-require_once __DIR__ . '/includes/class-ban-stats.php';
-require_once __DIR__ . '/includes/class-ban-blocker.php';
-require_once __DIR__ . '/includes/class-ban-settings.php';
-require_once __DIR__ . '/includes/class-ban.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-options.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-ip.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-stats.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-blocker.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-settings.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban.php';
 
-Ban::get_instance();
+WP_Ban::get_instance();

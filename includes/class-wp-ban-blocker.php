@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Decides whether the current request is banned, and serves the ban page.
  */
-class Ban_Blocker {
+class WP_Ban_Blocker {
 
 	/**
 	 * Run the ban check for this request.
@@ -29,35 +29,35 @@ class Ban_Blocker {
 			return;
 		}
 
-		$ip = Ban_IP::address();
+		$ip = WP_Ban_IP::address();
 
 		if ( self::is_excluded( $ip ) ) {
 			return;
 		}
 
 		if ( '' !== $ip ) {
-			if ( Ban_IP::matches_any( Ban_Options::list_of( 'ips' ), $ip ) ) {
+			if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'ips' ), $ip ) ) {
 				self::deny( $ip );
 			}
 
-			if ( Ban_IP::in_any_range( Ban_Options::list_of( 'ips_range' ), $ip ) ) {
+			if ( WP_Ban_IP::in_any_range( WP_Ban_Options::list_of( 'ips_range' ), $ip ) ) {
 				self::deny( $ip );
 			}
 		}
 
-		$hosts = Ban_Options::list_of( 'hosts' );
+		$hosts = WP_Ban_Options::list_of( 'hosts' );
 
 		// gethostbyaddr() is a blocking DNS lookup, so it only happens when
 		// there is a host name list to match against.
-		if ( ! empty( $hosts ) && Ban_IP::matches_any( $hosts, Ban_IP::hostname( $ip ) ) ) {
+		if ( ! empty( $hosts ) && WP_Ban_IP::matches_any( $hosts, WP_Ban_IP::hostname( $ip ) ) ) {
 			self::deny( $ip );
 		}
 
-		if ( Ban_IP::matches_any( Ban_Options::list_of( 'referers' ), Ban_IP::referer() ) ) {
+		if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'referers' ), WP_Ban_IP::referer() ) ) {
 			self::deny( $ip );
 		}
 
-		if ( Ban_IP::matches_any( Ban_Options::list_of( 'user_agents' ), Ban_IP::user_agent() ) ) {
+		if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'user_agents' ), WP_Ban_IP::user_agent() ) ) {
 			self::deny( $ip );
 		}
 	}
@@ -73,7 +73,7 @@ class Ban_Blocker {
 			return false;
 		}
 
-		foreach ( Ban_Options::list_of( 'exclude_ips' ) as $excluded ) {
+		foreach ( WP_Ban_Options::list_of( 'exclude_ips' ) as $excluded ) {
 			if ( $ip === $excluded ) {
 				return true;
 			}
@@ -89,7 +89,7 @@ class Ban_Blocker {
 	 * @return void
 	 */
 	private static function deny( $ip ) {
-		$stats = Ban_Stats::record( $ip );
+		$stats = WP_Ban_Stats::record( $ip );
 
 		$message = str_replace(
 			array(
@@ -105,10 +105,10 @@ class Ban_Blocker {
 				get_option( 'siteurl' ),
 				number_format_i18n( isset( $stats['users'][ $ip ] ) ? $stats['users'][ $ip ] : 0 ),
 				$ip,
-				Ban_IP::hostname( $ip ),
+				WP_Ban_IP::hostname( $ip ),
 				number_format_i18n( $stats['count'] ),
 			),
-			Ban_Options::message()
+			WP_Ban_Options::message()
 		);
 
 		/**
@@ -144,7 +144,7 @@ class Ban_Blocker {
 		// The message is stored through wp_kses() with the plugin's own allow
 		// list, so it is already safe HTML and must not be escaped again --
 		// esc_html() here would print the markup as visible text.
-		echo wp_kses( $message, Ban_Options::allowed_html() );
+		echo wp_kses( $message, WP_Ban_Options::allowed_html() );
 
 		exit;
 	}
@@ -155,7 +155,7 @@ class Ban_Blocker {
 	 * @return string
 	 */
 	public static function preview() {
-		$ip = Ban_IP::address();
+		$ip = WP_Ban_IP::address();
 
 		return str_replace(
 			array(
@@ -169,12 +169,12 @@ class Ban_Blocker {
 			array(
 				get_option( 'blogname' ),
 				get_option( 'siteurl' ),
-				number_format_i18n( Ban_Stats::attempts_for( $ip ) ),
+				number_format_i18n( WP_Ban_Stats::attempts_for( $ip ) ),
 				$ip,
-				Ban_IP::hostname( $ip ),
-				number_format_i18n( Ban_Stats::total() ),
+				WP_Ban_IP::hostname( $ip ),
+				number_format_i18n( WP_Ban_Stats::total() ),
 			),
-			Ban_Options::message()
+			WP_Ban_Options::message()
 		);
 	}
 }

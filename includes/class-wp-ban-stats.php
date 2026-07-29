@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Reads and writes the ban attempt counters.
  */
-class Ban_Stats {
+class WP_Ban_Stats {
 
 	/**
 	 * Option name.

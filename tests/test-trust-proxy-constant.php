@@ -16,12 +16,12 @@
  * own, at which point isolation silently stopped happening and the suite failed
  * with "Constant WP_BAN_TRUST_PROXY already defined".
  *
- * @covers Ban_IP
+ * @covers WP_Ban_IP
  *
  * @runTestsInSeparateProcesses
  * @preserveGlobalState disabled
  */
-class Test_Ban_Trust_Proxy_Constant extends Ban_TestCase {
+class Test_Ban_Trust_Proxy_Constant extends WP_Ban_TestCase {
 
 	public function test_the_constant_enables_the_proxy_headers() {
 		define( 'WP_BAN_TRUST_PROXY', true );
@@ -32,7 +32,7 @@ class Test_Ban_Trust_Proxy_Constant extends Ban_TestCase {
 		// No reverse_proxy setting: the constant alone is the opt-in.
 		$this->set_options( array() );
 
-		$this->assertSame( '203.0.113.1', Ban_IP::address() );
+		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
 	}
 
 	/**
@@ -48,7 +48,7 @@ class Test_Ban_Trust_Proxy_Constant extends Ban_TestCase {
 		$this->set_options( array() );
 
 		add_filter( 'wp_ban_trust_proxy', '__return_false' );
-		$ip = Ban_IP::address();
+		$ip = WP_Ban_IP::address();
 		remove_filter( 'wp_ban_trust_proxy', '__return_false' );
 
 		$this->assertSame( '198.51.100.7', $ip );
@@ -68,7 +68,7 @@ class Test_Ban_Trust_Proxy_Constant extends Ban_TestCase {
 		);
 
 		$this->set_options( array() );
-		Ban_IP::address();
+		WP_Ban_IP::address();
 
 		remove_all_filters( 'wp_ban_trust_proxy' );
 

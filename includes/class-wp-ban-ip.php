@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Works out who the visitor is, and whether they match a ban entry.
  */
-class Ban_IP {
+class WP_Ban_IP {
 
 	/**
 	 * Proxy headers trusted once the site has opted in.
@@ -47,7 +47,7 @@ class Ban_IP {
 			? self::valid_ip( sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) )
 			: '';
 
-		$options = Ban_Options::get();
+		$options = WP_Ban_Options::get();
 		$header  = (string) $options['ip_header'];
 
 		if ( '' !== $header && ! empty( $_SERVER[ $header ] ) ) {

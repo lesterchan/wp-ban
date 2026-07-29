@@ -10,19 +10,19 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Wires the ban check and the admin screen up.
  */
-class Ban {
+class WP_Ban {
 
 	/**
 	 * Sole instance.
 	 *
-	 * @var Ban|null
+	 * @var WP_Ban|null
 	 */
 	private static $instance = null;
 
 	/**
 	 * Retrieve, creating on first call.
 	 *
-	 * @return Ban
+	 * @return WP_Ban
 	 */
 	public static function get_instance() {
 		if ( null === self::$instance ) {
@@ -44,7 +44,7 @@ class Ban {
 		add_action( 'init', array( __CLASS__, 'check' ) );
 
 		if ( is_admin() ) {
-			Ban_Settings::init();
+			WP_Ban_Settings::init();
 		}
 	}
 
@@ -61,7 +61,7 @@ class Ban {
 			return;
 		}
 
-		Ban_Blocker::check();
+		WP_Ban_Blocker::check();
 	}
 
 	/**
@@ -108,11 +108,11 @@ class Ban {
 	 * @return void
 	 */
 	private static function activate_site() {
-		Ban_Options::maybe_migrate();
+		WP_Ban_Options::maybe_migrate();
 
-		if ( false === get_option( Ban_Options::OPTION, false ) ) {
-			add_option( Ban_Options::OPTION, Ban_Options::defaults() );
-			update_option( Ban_Options::DB_VERSION_OPTION, Ban_Options::DB_VERSION );
+		if ( false === get_option( WP_Ban_Options::OPTION, false ) ) {
+			add_option( WP_Ban_Options::OPTION, WP_Ban_Options::defaults() );
+			update_option( WP_Ban_Options::DB_VERSION_OPTION, WP_Ban_Options::DB_VERSION );
 		}
 	}
 }

@@ -21,7 +21,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  *
  * @return void
  */
-function ban_delete_options() {
+function wp_ban_uninstall_site() {
 	$option_names = array(
 		'banned_options',
 		'banned_stats',
@@ -48,22 +48,22 @@ if ( is_multisite() ) {
 	 * still reporting a successful uninstall. 'fields' => 'ids' avoids
 	 * hydrating WP_Site objects the loop never looks at.
 	 */
-	$ban_site_ids = get_sites(
+	$wp_ban_site_ids = get_sites(
 		array(
 			'fields' => 'ids',
 			'number' => 0,
 		)
 	);
 
-	foreach ( $ban_site_ids as $ban_site_id ) {
+	foreach ( $wp_ban_site_ids as $wp_ban_site_id ) {
 		// switch_to_blog() pushes onto a stack, so the restore belongs inside
 		// the loop -- restoring once at the end leaves it unwound by one.
-		switch_to_blog( (int) $ban_site_id );
+		switch_to_blog( (int) $wp_ban_site_id );
 
-		ban_delete_options();
+		wp_ban_uninstall_site();
 
 		restore_current_blog();
 	}
 } else {
-	ban_delete_options();
+	wp_ban_uninstall_site();
 }

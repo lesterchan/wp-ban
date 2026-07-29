@@ -8,7 +8,7 @@
 /**
  * Resets the plugin's state between tests and provides the ban-check seam.
  */
-abstract class Ban_TestCase extends WP_UnitTestCase {
+abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 
 	/**
 	 * Set up.
@@ -29,23 +29,23 @@ abstract class Ban_TestCase extends WP_UnitTestCase {
 			unset( $_SERVER[ $key ] );
 		}
 
-		foreach ( Ban_IP::PROXY_HEADERS as $header ) {
+		foreach ( WP_Ban_IP::PROXY_HEADERS as $header ) {
 			unset( $_SERVER[ $header ] );
 		}
 
 		$_SERVER['REMOTE_ADDR'] = '198.51.100.200';
 
-		delete_option( Ban_Options::OPTION );
-		delete_option( Ban_Stats::OPTION );
-		delete_option( Ban_Options::DB_VERSION_OPTION );
+		delete_option( WP_Ban_Options::OPTION );
+		delete_option( WP_Ban_Stats::OPTION );
+		delete_option( WP_Ban_Options::DB_VERSION_OPTION );
 
-		foreach ( array_keys( Ban_Options::LEGACY_LIST_OPTIONS ) as $legacy ) {
+		foreach ( array_keys( WP_Ban_Options::LEGACY_LIST_OPTIONS ) as $legacy ) {
 			delete_option( $legacy );
 		}
 
 		delete_option( 'banned_message' );
 
-		Ban_Options::flush_cache();
+		WP_Ban_Options::flush_cache();
 	}
 
 	/**
@@ -55,7 +55,7 @@ abstract class Ban_TestCase extends WP_UnitTestCase {
 		remove_filter( 'wp_die_handler', array( __CLASS__, 'throwing_wp_die_handler' ) );
 		remove_filter( 'wp_die_ajax_handler', array( __CLASS__, 'throwing_wp_die_handler' ) );
 
-		Ban_Options::flush_cache();
+		WP_Ban_Options::flush_cache();
 
 		parent::tear_down();
 	}
@@ -87,7 +87,7 @@ abstract class Ban_TestCase extends WP_UnitTestCase {
 	 * @return void
 	 */
 	protected function set_options( $options ) {
-		$merged = Ban_Options::defaults();
+		$merged = WP_Ban_Options::defaults();
 
 		if ( isset( $options['lists'] ) ) {
 			$merged['lists'] = array_merge( $merged['lists'], $options['lists'] );
@@ -96,16 +96,16 @@ abstract class Ban_TestCase extends WP_UnitTestCase {
 
 		// Written raw rather than through update_option(), so the sanitize
 		// callback is only in play in the tests that are actually about it.
-		update_option( Ban_Options::OPTION, array_merge( $merged, $options ) );
-		update_option( Ban_Options::DB_VERSION_OPTION, Ban_Options::DB_VERSION );
+		update_option( WP_Ban_Options::OPTION, array_merge( $merged, $options ) );
+		update_option( WP_Ban_Options::DB_VERSION_OPTION, WP_Ban_Options::DB_VERSION );
 
-		Ban_Options::flush_cache();
+		WP_Ban_Options::flush_cache();
 	}
 
 	/**
 	 * Run the ban check and report whether the visitor was turned away.
 	 *
-	 * Ban_Blocker::deny() ends in exit(), which would take the runner with it.
+	 * WP_Ban_Blocker::deny() ends in exit(), which would take the runner with it.
 	 * wp_ban_denied fires immediately before that, so throwing from it is the
 	 * seam that lets the decision be asserted without the process dying -- and
 	 * it exercises the real entry point rather than a test-only branch.
@@ -116,14 +116,14 @@ abstract class Ban_TestCase extends WP_UnitTestCase {
 		$denied = false;
 
 		$listener = static function ( $ip ) {
-			throw new Ban_Denied_Exception( (string) $ip );
+			throw new WP_Ban_Denied_Exception( (string) $ip );
 		};
 
 		add_action( 'wp_ban_denied', $listener );
 
 		try {
-			Ban_Blocker::check();
-		} catch ( Ban_Denied_Exception $e ) {
+			WP_Ban_Blocker::check();
+		} catch ( WP_Ban_Denied_Exception $e ) {
 			$denied = $e->getMessage();
 		} finally {
 			remove_action( 'wp_ban_denied', $listener );

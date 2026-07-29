@@ -75,7 +75,7 @@ describe( 'Restore Default Template', () => {
 
 describe( 'the request', () => {
 	/**
-	 * The contract the PHP side depends on. Ban_Settings::ajax_preview() is
+	 * The contract the PHP side depends on. WP_Ban_Settings::ajax_preview() is
 	 * reached through wp_ajax_{action} and gated by
 	 * check_ajax_referer( 'wp-ban_preview' ), which reads _ajax_nonce -- so
 	 * both field names are load-bearing, not implementation detail.
@@ -106,7 +106,7 @@ describe( 'the request', () => {
 	} );
 
 	it( 'posts the action registered on the PHP side', () => {
-		const php = readPluginFile( 'includes/class-ban-settings.php' );
+		const php = readPluginFile( 'includes/class-wp-ban-settings.php' );
 		const js = readPluginFile( 'js/wp-ban-admin.js' );
 
 		const action = js.match( /action:\s*'([^']+)'/ )[ 1 ];

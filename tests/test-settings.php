@@ -6,9 +6,9 @@
  */
 
 /**
- * @covers Ban_Settings
+ * @covers WP_Ban_Settings
  */
-class Test_Ban_Settings extends Ban_TestCase {
+class Test_Ban_Settings extends WP_Ban_TestCase {
 
 	/**
 	 * Set up.
@@ -34,12 +34,12 @@ class Test_Ban_Settings extends Ban_TestCase {
 		set_current_screen( 'settings_page_wp-ban' );
 
 		/*
-		 * Ban::__construct() only calls init() when is_admin() is true, which
+		 * WP_Ban::__construct() only calls init() when is_admin() is true, which
 		 * it is not under the test bootstrap, so the admin hooks have to be
 		 * registered explicitly here.
 		 */
-		Ban_Settings::init();
-		Ban_Settings::register();
+		WP_Ban_Settings::init();
+		WP_Ban_Settings::register();
 
 		/*
 		 * check_ajax_referer() calls a bare die( '-1' ) -- not wp_die() -- when
@@ -80,7 +80,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 
 		try {
 			ob_start();
-			Ban_Settings::render();
+			WP_Ban_Settings::render();
 			$html = (string) ob_get_clean();
 		} finally {
 			restore_error_handler();
@@ -116,7 +116,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		$html = $this->render();
 
 		$this->assertStringContainsString( 'action="options.php"', $html );
-		$this->assertStringContainsString( Ban_Settings::GROUP, $html );
+		$this->assertStringContainsString( WP_Ban_Settings::GROUP, $html );
 	}
 
 	/**
@@ -128,7 +128,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 	 */
 	public function test_every_list_has_a_textarea( $key ) {
 		$this->assertStringContainsString(
-			Ban_Options::OPTION . '[lists][' . $key . ']',
+			WP_Ban_Options::OPTION . '[lists][' . $key . ']',
 			$this->render()
 		);
 	}
@@ -147,9 +147,9 @@ class Test_Ban_Settings extends Ban_TestCase {
 	public function test_the_proxy_and_message_fields_are_present() {
 		$html = $this->render();
 
-		$this->assertStringContainsString( Ban_Options::OPTION . '[reverse_proxy]', $html );
-		$this->assertStringContainsString( Ban_Options::OPTION . '[ip_header]', $html );
-		$this->assertStringContainsString( Ban_Options::OPTION . '[message]', $html );
+		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[reverse_proxy]', $html );
+		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[ip_header]', $html );
+		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[message]', $html );
 	}
 
 	/**
@@ -183,7 +183,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 	}
 
 	public function test_the_stats_table_lists_recorded_addresses() {
-		Ban_Stats::record( '203.0.113.99' );
+		WP_Ban_Stats::record( '203.0.113.99' );
 
 		$html = $this->render();
 
@@ -193,10 +193,10 @@ class Test_Ban_Settings extends Ban_TestCase {
 
 	public function test_the_stats_table_is_paginated() {
 		for ( $i = 1; $i <= 60; $i++ ) {
-			Ban_Stats::record( '203.0.113.' . $i );
+			WP_Ban_Stats::record( '203.0.113.' . $i );
 		}
 
-		$table = new Ban_Stats_Table();
+		$table = new WP_Ban_Stats_Table();
 		$table->prepare_items();
 
 		// The pre-2.0.0 screen rendered every recorded address on one page.
@@ -204,11 +204,11 @@ class Test_Ban_Settings extends Ban_TestCase {
 	}
 
 	public function test_the_stats_table_sorts_by_attempts_by_default() {
-		Ban_Stats::record( '203.0.113.1' );
-		Ban_Stats::record( '203.0.113.2' );
-		Ban_Stats::record( '203.0.113.2' );
+		WP_Ban_Stats::record( '203.0.113.1' );
+		WP_Ban_Stats::record( '203.0.113.2' );
+		WP_Ban_Stats::record( '203.0.113.2' );
 
-		$table = new Ban_Stats_Table();
+		$table = new WP_Ban_Stats_Table();
 		$table->prepare_items();
 
 		$this->assertSame( '203.0.113.2', $table->items[0]['ip'] );
@@ -224,7 +224,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		$referer = 'http://*.spam.test/path?a=1&b=2';
 
 		update_option(
-			Ban_Options::OPTION,
+			WP_Ban_Options::OPTION,
 			array(
 				'reverse_proxy' => '1',
 				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
@@ -236,12 +236,12 @@ class Test_Ban_Settings extends Ban_TestCase {
 			)
 		);
 
-		Ban_Options::flush_cache();
+		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array( $referer ), Ban_Options::list_of( 'referers' ) );
-		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), Ban_Options::list_of( 'ips' ) );
-		$this->assertTrue( Ban_Options::get()['reverse_proxy'] );
-		$this->assertSame( 'HTTP_CF_CONNECTING_IP', Ban_Options::get()['ip_header'] );
+		$this->assertSame( array( $referer ), WP_Ban_Options::list_of( 'referers' ) );
+		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertTrue( WP_Ban_Options::get()['reverse_proxy'] );
+		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::get()['ip_header'] );
 	}
 
 	/**
@@ -251,28 +251,28 @@ class Test_Ban_Settings extends Ban_TestCase {
 	public function test_saving_twice_changes_nothing() {
 		$this->test_a_form_post_round_trips_through_the_registered_sanitizer();
 
-		$before = Ban_Options::get();
+		$before = WP_Ban_Options::get();
 
 		update_option(
-			Ban_Options::OPTION,
+			WP_Ban_Options::OPTION,
 			array(
 				'reverse_proxy' => $before['reverse_proxy'] ? '1' : '',
 				'ip_header'     => $before['ip_header'],
 				'lists'         => array(
-					'ips'         => Ban_Options::list_to_lines( 'ips' ),
-					'ips_range'   => Ban_Options::list_to_lines( 'ips_range' ),
-					'hosts'       => Ban_Options::list_to_lines( 'hosts' ),
-					'referers'    => Ban_Options::list_to_lines( 'referers' ),
-					'user_agents' => Ban_Options::list_to_lines( 'user_agents' ),
-					'exclude_ips' => Ban_Options::list_to_lines( 'exclude_ips' ),
+					'ips'         => WP_Ban_Options::list_to_lines( 'ips' ),
+					'ips_range'   => WP_Ban_Options::list_to_lines( 'ips_range' ),
+					'hosts'       => WP_Ban_Options::list_to_lines( 'hosts' ),
+					'referers'    => WP_Ban_Options::list_to_lines( 'referers' ),
+					'user_agents' => WP_Ban_Options::list_to_lines( 'user_agents' ),
+					'exclude_ips' => WP_Ban_Options::list_to_lines( 'exclude_ips' ),
 				),
-				'message'       => Ban_Options::message(),
+				'message'       => WP_Ban_Options::message(),
 			)
 		);
 
-		Ban_Options::flush_cache();
+		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( $before, Ban_Options::get() );
+		$this->assertSame( $before, WP_Ban_Options::get() );
 	}
 
 	/**
@@ -282,7 +282,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		global $wpdb;
 
 		$this->test_a_form_post_round_trips_through_the_registered_sanitizer();
-		Ban_Stats::record( '203.0.113.1' );
+		WP_Ban_Stats::record( '203.0.113.1' );
 
 		$rows = $wpdb->get_col(
 			"SELECT option_name FROM {$wpdb->options}
@@ -296,7 +296,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 	}
 
 	public function test_the_preview_endpoint_is_registered_without_a_public_twin() {
-		$this->assertNotFalse( has_action( 'wp_ajax_ban-admin', array( 'Ban_Settings', 'ajax_preview' ) ) );
+		$this->assertNotFalse( has_action( 'wp_ajax_ban-admin', array( 'WP_Ban_Settings', 'ajax_preview' ) ) );
 		$this->assertFalse( has_action( 'wp_ajax_nopriv_ban-admin' ) );
 	}
 
@@ -314,7 +314,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		$this->expectException( WPDieException::class );
 
 		try {
-			Ban_Settings::ajax_preview();
+			WP_Ban_Settings::ajax_preview();
 		} finally {
 			unset( $_REQUEST['_ajax_nonce'] );
 		}
@@ -325,7 +325,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 
 		$this->expectException( WPDieException::class );
 
-		Ban_Settings::ajax_preview();
+		WP_Ban_Settings::ajax_preview();
 	}
 
 	public function test_an_administrator_with_a_nonce_gets_the_preview() {
@@ -338,7 +338,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		ob_start();
 
 		try {
-			Ban_Settings::ajax_preview();
+			WP_Ban_Settings::ajax_preview();
 		} catch ( WPDieException $e ) {
 			unset( $e );
 		}
@@ -363,7 +363,7 @@ class Test_Ban_Settings extends Ban_TestCase {
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
 
 		// Queue one of each: a rejected range and a self-ban.
-		Ban_Options::sanitize(
+		WP_Ban_Options::sanitize(
 			array(
 				'lists' => array(
 					'ips'       => '203.0.113.44',
@@ -372,10 +372,10 @@ class Test_Ban_Settings extends Ban_TestCase {
 			)
 		);
 
-		$this->assertNotEmpty( get_settings_errors( Ban_Options::OPTION ) );
+		$this->assertNotEmpty( get_settings_errors( WP_Ban_Options::OPTION ) );
 
 		ob_start();
-		Ban_Settings::render();
+		WP_Ban_Settings::render();
 		$html = (string) ob_get_clean();
 
 		$this->assertSame( 0, substr_count( $html, 'setting-error-ban_bad_range' ) );
@@ -391,9 +391,9 @@ class Test_Ban_Settings extends Ban_TestCase {
 	 * action failed its referer check with "An error occurred."
 	 */
 	public function test_the_stats_form_uses_the_list_table_nonce() {
-		$this->assertSame( 'bulk-' . Ban_Settings::STATS_PLURAL, Ban_Settings::STATS_NONCE );
+		$this->assertSame( 'bulk-' . WP_Ban_Settings::STATS_PLURAL, WP_Ban_Settings::STATS_NONCE );
 
-		Ban_Stats::record( '203.0.113.99' );
+		WP_Ban_Stats::record( '203.0.113.99' );
 
 		$html = $this->render();
 
@@ -407,12 +407,12 @@ class Test_Ban_Settings extends Ban_TestCase {
 		preg_match( '/name="_wpnonce" value="([^"]+)"/', $stats_form, $m );
 
 		$this->assertNotEmpty( $m, 'the stats form has no nonce at all' );
-		$this->assertSame( 1, wp_verify_nonce( $m[1], Ban_Settings::STATS_NONCE ) );
+		$this->assertSame( 1, wp_verify_nonce( $m[1], WP_Ban_Settings::STATS_NONCE ) );
 	}
 
 	public function test_the_settings_link_points_at_the_screen() {
-		$links = Ban_Settings::action_links( array() );
+		$links = WP_Ban_Settings::action_links( array() );
 
-		$this->assertStringContainsString( 'page=' . Ban_Settings::PAGE, $links[0] );
+		$this->assertStringContainsString( 'page=' . WP_Ban_Settings::PAGE, $links[0] );
 	}
 }
