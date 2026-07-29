@@ -83,6 +83,20 @@
 	</rule>
 
 	<!--
+		WordPress.DB.DirectDatabaseQuery fires on every $wpdb call and has no
+		code-level answer for a plugin that owns a table: wp_ratings, wp_polls,
+		the email logs and the useronline table are this plugin family's own
+		schema, and core offers no API for them. Seven of the nineteen hit it.
+
+		Scoped to includes/ so it cannot cover a query in a test fixture, and
+		deliberately NOT paired with an exclusion for PreparedSQL: interpolating
+		into SQL stays an error everywhere, because that one does have an answer.
+	-->
+	<rule ref="WordPress.DB.DirectDatabaseQuery">
+		<exclude-pattern>/includes/*</exclude-pattern>
+	</rule>
+
+	<!--
 		A WP_List_Table has to read $_GET['orderby'] and $_GET['order'] to sort
 		itself. Core builds a sortable column header by swapping those two keys
 		on the current URL, so the link carries no nonce and there is nothing to
