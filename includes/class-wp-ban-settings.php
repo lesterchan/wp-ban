@@ -484,13 +484,16 @@ class WP_Ban_Settings {
 			esc_textarea( WP_Ban_Options::message() )
 		);
 
+		// The two buttons are found by their data-wp-ban-action, not by id: the
+		// script binds behaviour to the attribute, so the ids stay free to be
+		// what a label points at rather than what a listener matches on.
 		echo '<p>';
 		printf(
-			'<button type="button" class="button" id="wp-ban-restore-default">%s</button> ',
+			'<button type="button" class="button" data-wp-ban-action="restore">%s</button> ',
 			esc_html__( 'Restore Default Template', 'wp-ban' )
 		);
 		printf(
-			'<button type="button" class="button" id="wp-ban-preview-toggle" data-label-show="%s" data-label-hide="%s">%s</button>',
+			'<button type="button" class="button" data-wp-ban-action="preview" data-label-show="%s" data-label-hide="%s">%s</button>',
 			esc_attr__( 'Show Preview', 'wp-ban' ),
 			esc_attr__( 'Show Template', 'wp-ban' ),
 			esc_html__( 'Show Preview', 'wp-ban' )
@@ -516,9 +519,13 @@ class WP_Ban_Settings {
 			WP_BAN_URL . 'js/wp-ban-admin.js',
 			array(),
 			WP_BAN_VERSION,
-			// wp_enqueue_script()'s $args array, and with it
-			// strategy => defer, is WordPress 6.3+; the floor here is 6.0.
-			true
+			// No dependencies, and nothing to do before the fields exist, so it
+			// is deferred rather than merely put in the footer. The $args array
+			// is WordPress 6.3+ and the floor is 6.8.
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
 		);
 
 		wp_localize_script(

@@ -41,8 +41,8 @@ export function settingsMarkup() {
 	return `
 		<textarea id="wp-ban-message">stored template</textarea>
 		<p>
-			<button type="button" class="button" id="wp-ban-restore-default">Restore Default Template</button>
-			<button type="button" class="button" id="wp-ban-preview-toggle"
+			<button type="button" class="button" data-wp-ban-action="restore">Restore Default Template</button>
+			<button type="button" class="button" data-wp-ban-action="preview"
 				data-label-show="Show Preview" data-label-hide="Show Template">Show Preview</button>
 		</p>
 		<div id="wp-ban-preview" hidden></div>

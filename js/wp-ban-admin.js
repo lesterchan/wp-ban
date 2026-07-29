@@ -1,9 +1,10 @@
 /**
  * WP-Ban settings screen.
  *
- * Vanilla, no jQuery: the plugin was the only thing pulling jQuery onto this
- * screen. Listeners are delegated from document, so the script does not care
- * when the fields appear.
+ * Vanilla ES2017, no library and no build step: this plugin was the only thing
+ * asking wp-admin for one. The single listener is delegated from document and
+ * matches on data-wp-ban-action, so the script does not care when the fields
+ * appear or what wraps a button's label.
  */
 ( function() {
 	'use strict';
@@ -83,20 +84,20 @@
 	}
 
 	document.addEventListener( 'click', function( event ) {
-		const target = event.target;
+		const target = event.target?.closest?.( '[data-wp-ban-action]' );
 
-		if ( ! target || ! target.id ) {
+		if ( ! target ) {
 			return;
 		}
 
-		if ( 'wp-ban-restore-default' === target.id ) {
+		if ( 'restore' === target.dataset.wpBanAction ) {
 			event.preventDefault();
 			restoreDefault();
 
 			return;
 		}
 
-		if ( 'wp-ban-preview-toggle' === target.id ) {
+		if ( 'preview' === target.dataset.wpBanAction ) {
 			event.preventDefault();
 
 			const textarea = byId( 'wp-ban-message' );
