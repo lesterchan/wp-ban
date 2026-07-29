@@ -2,11 +2,11 @@
 Contributors: GamerZ  
 Donate link: https://lesterchan.net/site/donation/  
 Tags: ban, ip, hostname, referrer, bots  
-Requires at least: 6.0  
+Requires at least: 6.8  
 Tested up to: 7.0  
 Stable tag: 2.0.0  
-Requires PHP: 7.4  
-License: GPLv2 or later
+Requires PHP: 8.2  
+License: GPLv2 or later  
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Ban users by IP, IP range, host name, user agent and referrer URL from visiting your WordPress blog.
@@ -14,21 +14,53 @@ Ban users by IP, IP range, host name, user agent and referrer URL from visiting 
 ## Description
 Banned visitors are served a custom message instead of your site. You can ban by IP address, IP range, host name, user agent or referrer URL, exclude specific addresses from ever being banned, and see how many times each banned visitor has tried to get in. Wildcards are supported throughout.
 
-### General Usage
-Go to **Settings &rarr; Ban** and fill in the lists you want. Every list matches the whole value, so use `*` where you want a partial match: `192.168.1.*` bans that whole block, `EmailSiphon*` bans every user agent starting with that name.
+Everything is configured under `Settings -> Ban`. The plugin will not let you ban the address, host name or user agent you are currently browsing with, so a wildcard that would lock you out of your own site is refused at save time and the screen says which entry it dropped.
+
+### Features
+* Ban by IP address, IP range, host name, user agent or referrer URL
+* Wildcards in every list except IP ranges and the exclude list
+* IPv4 and IPv6, including IPv6 ranges
+* An exclude list that wins over every other list
+* Your own banned message, as a complete HTML document, with a live preview
+* A sortable, paginated count of how many times each banned visitor has tried
+* Self-ban protection that protects whoever is saving, not just a user called "admin"
+
+### Donations
+I spent most of my free time creating, updating, maintaining and supporting these plugins, if you really love my plugins and could spare me a couple of bucks, I will really appreciate it. If not feel free to use it without any obligations.
+
+## Usage
+Go to `Settings -> Ban` and fill in the lists you want. Every list matches the whole value, so use `*` where you want a partial match: `192.168.1.*` bans that whole block, `EmailSiphon*` bans every user agent starting with that name.
 
 IP ranges are written as `start-end`, one per line. IPv4 and IPv6 are both supported, but a single range cannot mix the two.
 
-The plugin will not let you ban the address, host name or user agent you are currently browsing with.
+Ban stats sit below the settings on the same screen, twenty rows at a time, sortable by address or by attempts. Tick the rows you want cleared and use the bulk action, or tick **Reset every IP ban stat and the total** to start again.
 
-### Development
-* [https://github.com/lesterchan/wp-ban](https://github.com/lesterchan/wp-ban "https://github.com/lesterchan/wp-ban")
+### Filters
+Use `wp_ban_enabled` to skip the ban check for some requests:
 
-### Credits
-* Plugin icon by [Dave Gandy](https://fontawesome.com) from [Flaticon](https://www.flaticon.com)
+```php
+add_filter( 'wp_ban_enabled', function ( $enabled ) {
+	return ! defined( 'REST_REQUEST' ) || ! REST_REQUEST;
+} );
+```
 
-### Donations
-* I spent most of my free time creating, updating, maintaining and supporting these plugins, if you really love my plugins and could spare me a couple of bucks, I will really appreciate it. If not feel free to use it without any obligations.
+Use `wp_ban_denied` to do something else when a visitor is turned away:
+
+```php
+add_action( 'wp_ban_denied', function ( $ip, $status ) {
+	error_log( 'WP-Ban turned away ' . $ip );
+}, 10, 2 );
+```
+
+Use `wp_ban_capability` to hand the screen to a capability other than `manage_options`:
+
+```php
+add_filter( 'wp_ban_capability', function ( $capability, $context ) {
+	return 'edit_pages';
+}, 10, 2 );
+```
+
+The other four are `wp_ban_ipaddress` (the address a request is attributed to), `wp_ban_status_code` (the HTTP status the ban page is served with), `wp_ban_protect_self` (whether self-ban protection runs) and `wp_ban_trust_proxy` (whether the usual forwarding headers may be trusted).
 
 ## Frequently Asked Questions
 
@@ -41,18 +73,18 @@ By default WP-Ban only trusts `REMOTE_ADDR`, because every other header carrying
 2. **Tick *This site is behind a reverse proxy*** on the settings screen, which trusts the usual set of forwarding headers.
 3. **Define the constant** in `wp-config.php`:
 
-~~~php
+```php
 define( 'WP_BAN_TRUST_PROXY', true );
-~~~
+```
 
 For per-request control, filter it. The filter defaults to the constant, so the constant keeps working and the filter gets the last word:
 
-~~~php
+```php
 add_filter( 'wp_ban_trust_proxy', function ( $trust ) {
 	// Only trust the header when the request really came from your balancer.
 	return '10.0.0.5' === $_SERVER['REMOTE_ADDR'];
 } );
-~~~
+```
 
 Do not enable any of these if there is no proxy in front of WordPress: it makes every IP ban trivial to bypass.
 
@@ -61,64 +93,56 @@ That is deliberate as of 2.0.0. The ban page used to be served as `200 OK`, whic
 
 If you need the old behaviour back:
 
-~~~php
+```php
 add_filter( 'wp_ban_status_code', function () {
 	return 200;
 } );
-~~~
+```
 
 ### Where did my settings go after updating to 2.0.0?
-Nowhere — they were moved, not lost. WP-Ban used to keep its settings in eight separate rows in the options table; 2.0.0 consolidates them into one. The move runs automatically the first time an administrator loads wp-admin after the update, and it also repairs two long-standing storage faults on the way through (see the changelog).
+Nowhere — they were moved, not lost. WP-Ban used to keep its settings in eight separate rows in the options table, under names with no plugin prefix on them at all. 2.0.0 consolidates them into one row called `wp_ban_options`. The move runs automatically the first time an administrator loads wp-admin after the update, and it also repairs two long-standing storage faults on the way through (see the changelog).
 
 ### An IP range I entered was rejected
 A range must be two valid addresses of the same type, separated by a hyphen, with no wildcards — `192.168.1.1-192.168.1.255` or `2001:db8::1-2001:db8::ffff`. Anything else is refused at save time and the screen says which entry it dropped. Before 2.0.0 a malformed range was accepted and then matched *every* visitor, so if you had one stored, everybody was being banned.
 
-### How do I stop the ban check running for certain requests?
-Return false from `wp_ban_enabled`:
-
-~~~php
-add_filter( 'wp_ban_enabled', function ( $enabled ) {
-	return ! defined( 'REST_REQUEST' ) || ! REST_REQUEST;
-} );
-~~~
-
-WP-CLI and cron are already skipped.
-
-### Can I do something else when a visitor is banned?
-Yes, `wp_ban_denied` fires just before the ban page is sent:
-
-~~~php
-add_action( 'wp_ban_denied', function ( $ip, $status ) {
-	error_log( 'WP-Ban turned away ' . $ip );
-}, 10, 2 );
-~~~
-
 ### What variables can I use in the banned message?
 `%SITE_NAME%`, `%SITE_URL%`, `%USER_IP%`, `%USER_HOSTNAME%`, `%USER_ATTEMPTS_COUNT%` and `%TOTAL_ATTEMPTS_COUNT%`. Your message must sit inside `<div id="wp-ban-container"></div>` so the preview button can find it.
 
+### What does the plugin store in my database?
+Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version it last ran, and `wp_ban_stats` for the attempt counters. Only the first two are autoloaded. Deleting the plugin from the Plugins screen removes all three, and every pre-2.0.0 row as well.
+
+## Screenshots
+
+1. Ban Options
+2. Ban Lists
+3. Banned Message and its preview
+4. Ban Stats
+
 ## Changelog
 ### 2.0.0
-* IMPORTANT: Proxy headers are no longer trusted by default. If your site is behind Cloudflare, a load balancer or any reverse proxy, name the header in the new *Trusted header* field, tick the reverse proxy box, or define `WP_BAN_TRUST_PROXY`. See the FAQ.
-* IMPORTANT: The ban page is now served as `403 Forbidden` instead of `200 OK`. Filter `wp_ban_status_code` to restore the old behaviour. See the FAQ.
-* IMPORTANT: The pre-2.0.0 global functions (`banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()`, `preg_match_wildcard()` and friends) have been removed. They were unprefixed and declared unconditionally; any code calling them must be updated.
-* NEW: Requires WordPress 6.0 and PHP 7.4.
-* NEW: Settings moved to the Settings API, and the eight option rows consolidated into one. Existing settings are migrated automatically.
+* BREAKING: Requires WordPress 6.8 and PHP 8.2, up from 6.0 and 7.4. A site on an older stack is not offered the update at all.
+* BREAKING: Proxy headers are no longer trusted by default. If your site is behind Cloudflare, a load balancer or any reverse proxy, name the header in the new *Trusted header* field, tick the reverse proxy box, or define `WP_BAN_TRUST_PROXY`. See the FAQ.
+* BREAKING: The ban page is now served as `403 Forbidden` instead of `200 OK`. Filter `wp_ban_status_code` to restore the old behaviour. See the FAQ.
+* BREAKING: The pre-2.0.0 global functions (`banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()`, `preg_match_wildcard()` and friends) have been removed. They were unprefixed and declared unconditionally; any code calling them must be updated.
+* BREAKING: The option rows are renamed. `banned_options` is now `wp_ban_options`, `banned_stats` is now `wp_ban_stats`, and `ban_db_version` is replaced by `wp_ban_version`. The ten pre-2.0.0 rows are folded into those three automatically and then deleted.
+* NEW: Settings moved to the Settings API, under `Settings -> Ban`.
 * NEW: Ban stats are now a sortable, paginated list table with bulk delete. The old table rendered every recorded address on a single page.
 * NEW: IPv6 IP ranges are supported.
 * NEW: An optional trusted-header setting, plus the `WP_BAN_TRUST_PROXY` constant and `wp_ban_trust_proxy` filter.
-* NEW: `wp_ban_enabled`, `wp_ban_denied`, `wp_ban_status_code`, `wp_ban_ipaddress` and `wp_ban_protect_self` hooks.
+* NEW: `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self` and `wp_ban_status_code` hooks.
 * NEW: Dropped jQuery; the admin script is vanilla JavaScript.
 * NEW: The ban check no longer runs for WP-CLI or cron.
+* CHANGED: Restructured into `includes/`, with every class prefixed `WP_Ban_`.
+* CHANGED: The ban stats row is no longer autoloaded, so an unbounded list of every address ever turned away is no longer read on every page view.
 * FIXED: A malformed IP range banned every visitor. `ip2long()` returns false for an unparseable bound, and PHP compared the address against that boolean as true.
 * FIXED: IPv6 ranges silently matched nobody.
 * FIXED: Network activation and multisite uninstall fatalled, because `wp_get_sites()` was removed in WordPress 5.1. Both now page through every site rather than stopping at the hundredth.
-* FIXED: Ban entries were stored HTML-escaped, so a referrer pattern containing `&` could never match a real Referer header, and re-saving compounded it. Existing entries are repaired by the migration.
-* FIXED: The banned message was stored slashed and unslashed on every read. The migration corrects the stored value.
+* FIXED: Ban entries were stored HTML-escaped, so a referrer pattern containing `&` could never match a real Referer header, and re-saving compounded it. Existing entries are repaired by the upgrade.
+* FIXED: The banned message was stored slashed and unslashed on every read. The upgrade corrects the stored value.
 * FIXED: Bans stopped applying entirely when the reverse proxy box was ticked and no proxy header was present, or when the visitor's address was on a private network.
 * FIXED: The banned message preview was readable by any logged-in user, including subscribers. It now requires `manage_options` and a nonce.
 * FIXED: Self-ban protection only worked if your username was literally "admin". It now protects whoever is saving.
-* FIXED: `banned_options` was never removed on uninstall.
-* FIXED: The ban statistics row is no longer autoloaded on every request.
+* FIXED: The settings row was never removed on uninstall.
 * FIXED: The plugin no longer hardcodes its own directory name, so it works installed under any folder.
 * FIXED: Various PHP 8 warnings and deprecations.
 
@@ -196,3 +220,19 @@ add_action( 'wp_ban_denied', function ( $ip, $status ) {
 * NEW: Banned By Referer URL
 * NEW: Ability To Exclude Specific IPs From Being Banned
 * NEW: Added Template Variables For User Attempts Count And Total Attempts Count
+
+## Upgrade Notice
+### 2.0.0
+The first release since 1.69.2, and five things about it are worth knowing before you update.
+
+**Your site must be on WordPress 6.8 or later and PHP 8.2 or later.** Anything older will simply not be offered the update. If your host still runs PHP 7.4, ask to be moved to a supported version before updating — 7.4 stopped receiving security fixes in 2022.
+
+**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin would read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site really is behind Cloudflare, a load balancer or any other proxy, open `Settings -> Ban` after updating and either name the exact header your proxy sets in the new *Trusted header* field, or re-tick *This site is behind a reverse proxy*. If it is not behind a proxy, do nothing: bans will simply start working properly.
+
+**Banned visitors now get a 403, not a 200.** Uptime monitors and SEO tools that were quietly treating your ban page as your site's real content will start reporting 403 for banned addresses. That is the point. Add a filter on `wp_ban_status_code` returning 200 if you need the old behaviour.
+
+**Your settings move to new rows in the database, and the old ones are deleted.** The eight rows the plugin used — `banned_options`, `banned_ips`, `banned_ips_range`, `banned_hosts`, `banned_referers`, `banned_user_agents`, `banned_exclude_ips` and `banned_message` — become one `wp_ban_options` row; `banned_stats` becomes `wp_ban_stats`, and `ban_db_version` becomes `wp_ban_version`. Nothing is lost and there is nothing to do: the move runs by itself the first time an administrator loads wp-admin after the update. If you have a backup script, a migration tool or a `wp-config.php` snippet that names any of the old rows, point it at the new ones.
+
+**Every function the plugin used to declare is gone.** `banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()` and `preg_match_wildcard()` were global, unprefixed and declared on every request, and none of them was ever a documented API. If a theme or a snippet in your site calls one, it will fatal after updating. The replacements are static methods on `WP_Ban_IP` and `WP_Ban_Options`, and there are now six filters and one action — `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self`, `wp_ban_status_code` and `wp_ban_trust_proxy` — which are the supported way in.
+
+Two smaller things. Your ban entries are repaired on the way through: they used to be stored HTML-escaped, so a referrer pattern containing `&` could never match a real `Referer` header, and re-saving it made it worse each time. And if you had a malformed IP range stored — anything that was not two valid addresses of the same type — it was matching *every* visitor at or below its upper bound, so your whole audience was being banned. It is dropped at the first save, and no longer matches anybody in the meantime.
