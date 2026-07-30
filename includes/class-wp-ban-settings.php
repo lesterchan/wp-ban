@@ -167,7 +167,7 @@ class WP_Ban_Settings {
 	public static function add_page() {
 		self::$hook_suffix = add_options_page(
 			__( 'Ban', 'wp-ban' ),
-			__( 'Ban', 'wp-ban' ),
+			__( 'WP-Ban', 'wp-ban' ),
 			self::capability( 'screen' ),
 			self::PAGE,
 			array( __CLASS__, 'render' )
