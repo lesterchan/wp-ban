@@ -225,7 +225,7 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 ### 2.0.0
 The first release since 1.69.2, and five things about it are worth knowing before you update.
 
-**Your site must be on WordPress 6.8 or later and PHP 8.2 or later.** Anything older will simply not be offered the update. If your host still runs PHP 7.4, ask to be moved to a supported version before updating — 7.4 stopped receiving security fixes in 2022.
+**Your site must be on WordPress 6.8 or later and PHP 8.2 or later.** Anything older will simply not be offered the update. Check `WP-Admin -> Tools -> Site Health -> Info -> Server` for your PHP version; if it is below 8.2, ask your host to move you up. PHP 8.1 and everything before it stopped receiving security fixes.
 
 **Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin would read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site really is behind Cloudflare, a load balancer or any other proxy, open `Settings -> Ban` after updating and either name the exact header your proxy sets in the new *Trusted header* field, or re-tick *This site is behind a reverse proxy*. If it is not behind a proxy, do nothing: bans will simply start working properly.
 
