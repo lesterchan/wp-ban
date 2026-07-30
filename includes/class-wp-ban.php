@@ -73,8 +73,9 @@ class WP_Ban {
 	public static function activate( $network_wide ) {
 		if ( is_multisite() && $network_wide ) {
 			/*
-			 * wp_get_sites() was removed in WordPress 5.1, so this used to
-			 * fatal rather than merely skip sites. 'number' => 0 lifts
+			 * wp_get_sites() has been deprecated since WordPress 4.6 and is
+			 * itself capped at 100 sites, so this used to skip them silently.
+			 * 'number' => 0 lifts
 			 * WP_Site_Query's default cap of 100, which would otherwise leave
 			 * every site past the hundredth unconfigured while still reporting
 			 * a successful activation.
