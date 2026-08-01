@@ -320,7 +320,7 @@ class WP_Ban_Settings {
 
 		add_settings_section(
 			self::SECTION_MESSAGE,
-			__( 'Banned Message', 'wp-ban' ),
+			'',
 			array( __CLASS__, 'section_message' ),
 			$templates
 		);
