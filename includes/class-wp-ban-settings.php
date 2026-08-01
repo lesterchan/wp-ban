@@ -215,7 +215,7 @@ class WP_Ban_Settings {
 
 		add_settings_field(
 			'wp_ban_ip_header',
-			__( 'Trusted header', 'wp-ban' ),
+			__( 'Header That Contains The IP', 'wp-ban' ),
 			array( __CLASS__, 'field_ip_header' ),
 			self::PAGE,
 			self::SECTION_PROXY,
@@ -384,10 +384,24 @@ class WP_Ban_Settings {
 			esc_attr( $options['ip_header'] )
 		);
 
+		// Worded exactly as wp-polls and wp-postratings word it, with one extra
+		// sentence for the checkbox above, which no other plugin has.
+		echo '<p class="description">';
+		esc_html_e( 'Leave this blank unless the site is behind a reverse proxy or CDN. Blank means the address the web server saw is used, unless the checkbox above is ticked.', 'wp-ban' );
+		echo '<br />';
 		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Optional, and the safest choice if you know your stack: name the single header your proxy sets, and only that one is trusted. Leave empty to fall back to the checkbox above.', 'wp-ban' )
+			/* translators: 1: an example header name, 2: the WP_BAN_TRUST_PROXY constant, 3: the wp_ban_trust_proxy filter, all in code spans. */
+			esc_html__( 'Example: %1$s. You can also opt in with the %2$s constant or the %3$s filter, which trust the usual proxy headers instead of one you name.', 'wp-ban' ),
+			'<code>HTTP_X_FORWARDED_FOR</code>',
+			'<code>WP_BAN_TRUST_PROXY</code>',
+			'<code>wp_ban_trust_proxy</code>'
 		);
+		echo '<br />';
+		printf(
+			'<strong>%s</strong>',
+			esc_html__( 'Only name a header your proxy sets and overwrites. A visitor can send any header they like, so trusting one your stack does not control lets anyone walk past a ban.', 'wp-ban' )
+		);
+		echo '</p>';
 	}
 
 	/**
