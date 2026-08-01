@@ -56,8 +56,11 @@ class WP_Ban_Metadata_Test extends WP_Ban_TestCase {
 		foreach ( $iterator as $file ) {
 			$path = $file->getPathname();
 
-			// vendor/ and node_modules/ are not ours and never ship.
-			if ( false !== strpos( $path, '/vendor/' ) || false !== strpos( $path, '/node_modules/' ) ) {
+			// vendor/ and node_modules/ are not ours and never ship, and
+			// artifacts/ is whatever the last failing Playwright run left behind.
+			if ( false !== strpos( $path, '/vendor/' )
+				|| false !== strpos( $path, '/node_modules/' )
+				|| false !== strpos( $path, '/artifacts/' ) ) {
 				continue;
 			}
 
