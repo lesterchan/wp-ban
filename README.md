@@ -120,7 +120,7 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 
 ## Changelog
 ### 2.0.0
-* BREAKING: Requires WordPress 6.8 and PHP 8.2, up from 6.0 and 7.4. A site on an older stack is not offered the update at all.
+* BREAKING: Requires WordPress 6.8 and PHP 8.2, up from 6.0 and 7.4.
 * BREAKING: Proxy headers are no longer trusted by default. If your site is behind Cloudflare, a load balancer or any reverse proxy, name the header in the new *Trusted header* field, tick the reverse proxy box, or define `WP_BAN_TRUST_PROXY`. See the FAQ.
 * BREAKING: The ban page is now served as `403 Forbidden` instead of `200 OK`. Filter `wp_ban_status_code` to restore the old behaviour. See the FAQ.
 * BREAKING: The pre-2.0.0 global functions (`banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()`, `preg_match_wildcard()` and friends) have been removed. They were unprefixed and declared unconditionally; any code calling them must be updated.
@@ -147,17 +147,17 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 * FIXED: Various PHP 8 warnings and deprecations.
 
 ## Upgrade Notice
+
 ### 2.0.0
-The first release since 1.69.2, and five things about it are worth knowing before you update.
 
-**Your site must be on WordPress 6.8 or later and PHP 8.2 or later.** Anything older will simply not be offered the update. Check `WP-Admin -> Tools -> Site Health -> Info -> Server` for your PHP version; if it is below 8.2, ask your host to move you up. PHP 8.1 and everything before it stopped receiving security fixes.
+Requires WordPress 6.8 and PHP 8.2.
 
-**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin would read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site really is behind Cloudflare, a load balancer or any other proxy, open `Settings -> Ban` after updating and either name the exact header your proxy sets in the new *Trusted header* field, or re-tick *This site is behind a reverse proxy*. If it is not behind a proxy, do nothing: bans will simply start working properly.
+**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site is behind a proxy, open `Settings -> Ban` and either name the exact header your proxy sets in the new *Trusted header* field, or re-tick *This site is behind a reverse proxy*. Otherwise do nothing.
 
-**Banned visitors now get a 403, not a 200.** Uptime monitors and SEO tools that were quietly treating your ban page as your site's real content will start reporting 403 for banned addresses. That is the point. Add a filter on `wp_ban_status_code` returning 200 if you need the old behaviour.
+**Banned visitors get a 403, not a 200.** Uptime monitors and SEO tools that were treating the ban page as real content will start reporting 403 for banned addresses. Filter `wp_ban_status_code` to return 200 for the old behaviour.
 
-**Your settings move to new rows in the database, and the old ones are deleted.** The eight rows the plugin used — `banned_options`, `banned_ips`, `banned_ips_range`, `banned_hosts`, `banned_referers`, `banned_user_agents`, `banned_exclude_ips` and `banned_message` — become one `wp_ban_options` row; `banned_stats` becomes `wp_ban_stats`, and `ban_db_version` becomes `wp_ban_version`. Nothing is lost and there is nothing to do: the move runs by itself the first time an administrator loads wp-admin after the update. If you have a backup script, a migration tool or a `wp-config.php` snippet that names any of the old rows, point it at the new ones.
+**Settings migrate on the first admin page load, and the old rows are deleted.** `banned_options`, `banned_ips`, `banned_ips_range`, `banned_hosts`, `banned_referers`, `banned_user_agents`, `banned_exclude_ips` and `banned_message` become one `wp_ban_options` row; `banned_stats` becomes `wp_ban_stats`; `ban_db_version` becomes `wp_ban_version`. Point any backup script, migration tool or `wp-config.php` snippet naming an old row at the new one.
 
-**Every function the plugin used to declare is gone.** `banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()` and `preg_match_wildcard()` were global, unprefixed and declared on every request, and none of them was ever a documented API. If a theme or a snippet in your site calls one, it will fatal after updating. The replacements are static methods on `WP_Ban_IP` and `WP_Ban_Options`, and there are now six filters and one action — `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self`, `wp_ban_status_code` and `wp_ban_trust_proxy` — which are the supported way in.
+**Every global function the plugin declared is gone.** `banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()` and `preg_match_wildcard()` were unprefixed, declared on every request and never a documented API; calling one now fatals. The replacements are static methods on `WP_Ban_IP` and `WP_Ban_Options`, plus six filters and one action: `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self`, `wp_ban_status_code` and `wp_ban_trust_proxy`.
 
-Two smaller things. Your ban entries are repaired on the way through: they used to be stored HTML-escaped, so a referrer pattern containing `&` could never match a real `Referer` header, and re-saving it made it worse each time. And if you had a malformed IP range stored — anything that was not two valid addresses of the same type — it was matching *every* visitor at or below its upper bound, so your whole audience was being banned. It is dropped at the first save, and no longer matches anybody in the meantime.
+**Two fixes applied to stored entries on the way through.** Entries were stored HTML-escaped, so a referrer pattern containing `&` could never match a real `Referer` header, and re-saving compounded it. And a malformed IP range — anything that was not two valid addresses of the same type — matched *every* visitor at or below its upper bound, banning the whole audience. Malformed ranges no longer match anybody, and are dropped at the first save.
