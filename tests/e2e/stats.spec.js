@@ -16,6 +16,12 @@
  * selected rows and the reset-everything box -- and in both cases against the
  * stored row rather than the notice, because a screen that says it reset
  * something and did not is the failure worth catching.
+ *
+ * The table lives on the Stats tab, which is the screen's default. It has its
+ * own form, posting to itself rather than to options.php, and its own nonce --
+ * the one WP_List_Table emits for the bulk action. Every navigation the table
+ * offers has to carry the tab with it, or a sort or a page turn quietly lands
+ * the table on somebody else's tab, so each of the three asserts that too.
  */
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
@@ -55,14 +61,14 @@ test.describe( 'The ban stats table', () => {
 		// Both halves in one test. "No rows" is true with the plugin
 		// deactivated as well, so on its own it proves nothing; the second half
 		// is what makes this fail when the plugin is gone.
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		await expect( page.locator( '.wp-list-table' ) ).toContainText( 'No attempts.' );
 		await expect( page.locator( '#wpbody' ) ).toContainText( 'Total attempts turned away: 0' );
 
 		setStats( { users: { '203.0.113.7': 4 }, count: 9 } );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		await expect( page.locator( '.wp-list-table tbody tr' ) ).toHaveCount( 1 );
 		await expect( page.locator( '.wp-list-table' ) ).toContainText( '203.0.113.7' );
@@ -77,7 +83,7 @@ test.describe( 'The ban stats table', () => {
 	test( 'the table paginates rather than printing every address it has', async ( { page } ) => {
 		setStats( inventStats( 25 ) );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		// Twenty per page is core's default for this table, so twenty-five rows
 		// is the smallest fixture with a second page. The precondition is
@@ -92,12 +98,17 @@ test.describe( 'The ban stats table', () => {
 		await page.locator( '.tablenav-pages a.next-page' ).first().click();
 
 		await expect( page.locator( '.wp-list-table tbody tr' ) ).toHaveCount( 5 );
+
+		// And still on the tab the table lives on. WP_List_Table builds its
+		// links by adding arguments to the current URL, so the tab rides along
+		// -- but only for as long as it really is in the URL.
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Stats' );
 	} );
 
 	test( 'the sortable headers reorder the rows', async ( { page } ) => {
 		setStats( inventStats( 3 ) );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		const rows = page.locator( '.wp-list-table tbody tr .column-ip' );
 
@@ -119,6 +130,10 @@ test.describe( 'The ban stats table', () => {
 		await expect( rows.first() ).toContainText( '203.0.113.1' );
 		await expect( rows.last() ).toContainText( '203.0.113.3' );
 
+		// A sorted table is still the Stats tab: a column header that dropped
+		// the tab would leave the table drawn under whichever one is default.
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Stats' );
+
 		// Back to attempts, which the plugin declared descending-first: coming
 		// from another column, one click means "most attempts", not "reverse of
 		// whatever you were looking at".
@@ -136,7 +151,7 @@ test.describe( 'The ban stats table', () => {
 	test( 'the bulk action forgets the selected addresses and nothing else', async ( { page } ) => {
 		setStats( { users: { '203.0.113.1': 2, '203.0.113.2': 3, '203.0.113.3': 4 }, count: 9 } );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		await page.locator( 'input[name="ips[]"][value="203.0.113.2"]' ).check();
 		await page.locator( 'select[name="action"]' ).selectOption( 'reset' );
@@ -145,6 +160,10 @@ test.describe( 'The ban stats table', () => {
 		await expect( page.locator( '.notice-success' ).first() ).toContainText(
 			'The selected ban stats were reset',
 		);
+
+		// The bulk action posts, redirects and comes back -- to the tab the
+		// table is on, not to whichever one the screen opens at by default.
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Stats' );
 
 		// The row, not the notice. Forgetting one address must leave the others
 		// and the total alone: the total is the site's whole history and
@@ -160,7 +179,7 @@ test.describe( 'The ban stats table', () => {
 	test( 'the reset-everything box clears the rows and the total', async ( { page } ) => {
 		setStats( inventStats( 3 ) );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		await page.locator( 'input[name="reset_all"]' ).check();
 		await page.getByRole( 'button', { name: 'Reset Ban Stats' } ).click();
@@ -177,7 +196,7 @@ test.describe( 'The ban stats table', () => {
 	test( 'the notice is shown once, and a refresh does not replay the reset', async ( { page } ) => {
 		setStats( inventStats( 3 ) );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		await page.locator( 'input[name="reset_all"]' ).check();
 		await page.getByRole( 'button', { name: 'Reset Ban Stats' } ).click();
@@ -207,7 +226,7 @@ test.describe( 'The ban stats table', () => {
 		// inputs would be named _wpnonce and the last one posted would win,
 		// which is how every bulk action here used to fail its referer check.
 		// Posting without it has to be refused rather than quietly obeyed.
-		const response = await page.request.post( '/wp-admin/options-general.php?page=wp-ban', {
+		const response = await page.request.post( '/wp-admin/options-general.php?page=wp-ban&tab=stats', {
 			form: { action: 'reset', reset_all: '1' },
 		} );
 

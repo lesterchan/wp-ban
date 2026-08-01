@@ -115,7 +115,7 @@ test.describe( 'A hostile ban list stays inert', () => {
 		// copy anybody looks at.
 		setStats( { users: { [ hostile ]: 3, [ `${ FAKE.other } ${ IMG_PAYLOAD }` ]: 1 }, count: 4 } );
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		expect( await pwned( page ) ).toBe( false );
 
@@ -181,7 +181,7 @@ test.describe( 'A hostile ban list stays inert', () => {
 				'</div></body></html>',
 		} );
 
-		await openSettings( page );
+		await openSettings( page, 'templates' );
 
 		await page.getByRole( 'button', { name: 'Show Preview' } ).click();
 
@@ -226,7 +226,7 @@ test.describe( 'A hostile ban list stays inert', () => {
 			await visitor.context.close();
 		}
 
-		await openSettings( page );
+		await openSettings( page, 'stats' );
 
 		expect( await pwned( page ) ).toBe( false );
 

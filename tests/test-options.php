@@ -104,10 +104,78 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		$this->assertSame( $once, $twice );
 	}
 
-	public function test_an_unchecked_checkbox_is_absent_and_means_false() {
-		$clean = WP_Ban_Options::sanitize( array() );
+	/**
+	 * The checkbox posts a 0 of its own when unticked, so "absent" never has to
+	 * mean "off" -- which is what lets everything else absent mean "not this
+	 * tab's business".
+	 */
+	public function test_an_unticked_checkbox_posts_a_zero_and_stores_false() {
+		$this->set_options( array( 'reverse_proxy' => true ) );
 
-		$this->assertFalse( $clean['reverse_proxy'] );
+		$this->assertFalse( WP_Ban_Options::sanitize( array( 'reverse_proxy' => '0' ) )['reverse_proxy'] );
+		$this->assertTrue( WP_Ban_Options::sanitize( array( 'reverse_proxy' => '1' ) )['reverse_proxy'] );
+	}
+
+	/**
+	 * A field the submission never mentioned keeps whatever is stored.
+	 *
+	 * The screen is three tabs posting disjoint sets of fields into one option
+	 * row, and a sanitizer that returned only what it was given would blank
+	 * every field the submitting tab does not own.
+	 */
+	public function test_a_field_the_submission_omitted_keeps_its_stored_value() {
+		$this->set_options(
+			array(
+				'reverse_proxy' => true,
+				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
+				'lists'         => array( 'ips' => array( '203.0.113.5' ) ),
+				'message'       => '<div id="wp-ban-container"><p>Mine</p></div>',
+			)
+		);
+
+		$clean = WP_Ban_Options::sanitize( array( 'message' => '<div id="wp-ban-container"><p>Yours</p></div>' ) );
+
+		$this->assertTrue( $clean['reverse_proxy'] );
+		$this->assertSame( 'HTTP_CF_CONNECTING_IP', $clean['ip_header'] );
+		$this->assertSame( array( '203.0.113.5' ), $clean['lists']['ips'] );
+		$this->assertStringContainsString( 'Yours', $clean['message'] );
+	}
+
+	/**
+	 * A list the submission did mention is replaced, emptied included.
+	 *
+	 * The other half of the merge: "keep what was not posted" must not turn
+	 * into "a list can never be cleared".
+	 */
+	public function test_a_list_the_submission_emptied_is_actually_emptied() {
+		$this->set_options( array( 'lists' => array( 'ips' => array( '203.0.113.5' ) ) ) );
+
+		$clean = WP_Ban_Options::sanitize( array( 'lists' => array( 'ips' => '' ) ) );
+
+		$this->assertSame( array(), $clean['lists']['ips'] );
+	}
+
+	/**
+	 * Self-ban protection runs over the lists that were posted and no others.
+	 *
+	 * Re-running it over the stored ones would let a save from the Templates
+	 * tab quietly delete an entry an owner added from a different address, and
+	 * complain about it on a screen that never showed the list.
+	 */
+	public function test_a_save_from_another_tab_does_not_re_examine_the_stored_lists() {
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
+
+		// add_settings_error()'s queue is a plain global that no transaction
+		// rolls back, so an earlier test's warnings would answer for this one.
+		$GLOBALS['wp_settings_errors'] = array();
+
+		// Stored while the owner was somewhere else, so it matches them now.
+		$this->set_options( array( 'lists' => array( 'ips' => array( '203.0.113.44' ) ) ) );
+
+		$clean = WP_Ban_Options::sanitize( array( 'message' => '<div id="wp-ban-container"><p>Nope</p></div>' ) );
+
+		$this->assertSame( array( '203.0.113.44' ), $clean['lists']['ips'] );
+		$this->assertSame( array(), get_settings_errors( WP_Ban_Options::OPTION ) );
 	}
 
 	public function test_a_header_name_is_restricted_to_the_shape_php_uses() {

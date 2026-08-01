@@ -39,7 +39,7 @@ if ( 'cli' === PHP_SAPI ) {
 /**
  * Read one of the fixture's answers.
  *
- * null means "this test has not asked for anything", which is a different thing
+ * A null means "this test has not asked for anything", which is a different thing
  * from an answer of false -- and telling the two apart is the whole reason the
  * filters below are inert by default.
  *

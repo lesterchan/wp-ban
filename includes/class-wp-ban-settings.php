@@ -13,6 +13,17 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Registers and renders Settings -> Ban.
+ *
+ * One page, three tabs. Stats is the counters -- a list table with its own form
+ * and its own nonce, and the tab the screen opens on, because reading the
+ * counters is what somebody comes here to do. Settings is the proxy options and
+ * the six ban lists. Templates is the banned message, which is a whole HTML
+ * document and buried everything above it when it sat inline.
+ *
+ * A tab is a rendering decision, not a storage one: there is one
+ * register_setting(), one group and one wp_ban_options row behind all three,
+ * and the only thing the tab changes is which sections do_settings_sections()
+ * is asked for. What that costs is in WP_Ban_Options::sanitize().
  */
 class WP_Ban_Settings {
 
@@ -44,6 +55,17 @@ class WP_Ban_Settings {
 	 * @var string
 	 */
 	const CAPABILITY = 'manage_options';
+
+	/**
+	 * The tab shown when the request names none, and the one the page opens on.
+	 *
+	 * The counters come first because they are what somebody opens this screen
+	 * to look at; the lists behind them are edited far less often than they are
+	 * consulted.
+	 *
+	 * @var string
+	 */
+	const DEFAULT_TAB = 'stats';
 
 	/**
 	 * The section explaining how the visitor's address is resolved.
@@ -120,7 +142,9 @@ class WP_Ban_Settings {
 			$links,
 			sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( self::url() ),
+				// The Settings tab, not the screen's default: somebody who
+				// clicked "Settings" came to change one, not to read counters.
+				esc_url( self::url( 'settings' ) ),
 				esc_html__( 'Settings', 'wp-ban' )
 			)
 		);
@@ -129,12 +153,58 @@ class WP_Ban_Settings {
 	}
 
 	/**
-	 * The settings screen's URL.
+	 * The settings screen's URL, optionally on one of its tabs.
+	 *
+	 * @param string $tab Tab slug, or '' for the screen's own address.
+	 * @return string
+	 */
+	public static function url( $tab = '' ) {
+		$url = admin_url( 'options-general.php?page=' . self::PAGE );
+
+		return '' === $tab ? $url : add_query_arg( 'tab', $tab, $url );
+	}
+
+	/**
+	 * The screen's tabs, in the order they are shown.
+	 *
+	 * Named for what they hold and nothing else: the heading above them already
+	 * says which plugin this is, so "Ban Settings" would only repeat it.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function tabs() {
+		return array(
+			'stats'     => __( 'Stats', 'wp-ban' ),
+			'settings'  => __( 'Settings', 'wp-ban' ),
+			'templates' => __( 'Templates', 'wp-ban' ),
+		);
+	}
+
+	/**
+	 * Which tab this request is asking for.
 	 *
 	 * @return string
 	 */
-	public static function url() {
-		return admin_url( 'options-general.php?page=' . self::PAGE );
+	public static function current_tab() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Choosing which tab to draw; nothing else is read from the request and nothing is written.
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : self::DEFAULT_TAB;
+
+		return array_key_exists( $tab, self::tabs() ) ? $tab : self::DEFAULT_TAB;
+	}
+
+	/**
+	 * The Settings API page a tab's sections are registered against.
+	 *
+	 * Each tab is its own page as far as do_settings_sections() is concerned,
+	 * which is what stops one tab drawing the other's fields. It is not a second
+	 * settings page: there is still one register_setting(), one group and one
+	 * option row behind all three.
+	 *
+	 * @param string $tab Tab slug.
+	 * @return string
+	 */
+	private static function tab_page( $tab ) {
+		return self::PAGE . '-' . $tab;
 	}
 
 	/**
@@ -198,18 +268,21 @@ class WP_Ban_Settings {
 			)
 		);
 
+		$settings  = self::tab_page( 'settings' );
+		$templates = self::tab_page( 'templates' );
+
 		add_settings_section(
 			self::SECTION_PROXY,
 			__( 'Visitor IP Address', 'wp-ban' ),
 			array( __CLASS__, 'section_proxy' ),
-			self::PAGE
+			$settings
 		);
 
 		add_settings_field(
 			'wp_ban_reverse_proxy',
 			__( 'Reverse proxy', 'wp-ban' ),
 			array( __CLASS__, 'field_reverse_proxy' ),
-			self::PAGE,
+			$settings,
 			self::SECTION_PROXY
 		);
 
@@ -217,7 +290,7 @@ class WP_Ban_Settings {
 			'wp_ban_ip_header',
 			__( 'Header That Contains The IP', 'wp-ban' ),
 			array( __CLASS__, 'field_ip_header' ),
-			self::PAGE,
+			$settings,
 			self::SECTION_PROXY,
 			array( 'label_for' => 'wp-ban-ip-header' )
 		);
@@ -226,7 +299,7 @@ class WP_Ban_Settings {
 			self::SECTION_LISTS,
 			__( 'Ban Lists', 'wp-ban' ),
 			array( __CLASS__, 'section_lists' ),
-			self::PAGE
+			$settings
 		);
 
 		foreach ( self::list_fields() as $key => $field ) {
@@ -234,7 +307,7 @@ class WP_Ban_Settings {
 				'wp_ban_list_' . $key,
 				$field['label'],
 				array( __CLASS__, 'field_list' ),
-				self::PAGE,
+				$settings,
 				self::SECTION_LISTS,
 				array(
 					'key'         => $key,
@@ -249,14 +322,14 @@ class WP_Ban_Settings {
 			self::SECTION_MESSAGE,
 			__( 'Banned Message', 'wp-ban' ),
 			array( __CLASS__, 'section_message' ),
-			self::PAGE
+			$templates
 		);
 
 		add_settings_field(
 			'wp_ban_message_template',
 			__( 'Template', 'wp-ban' ),
 			array( __CLASS__, 'field_message' ),
-			self::PAGE,
+			$templates,
 			self::SECTION_MESSAGE,
 			array( 'label_for' => 'wp-ban-message' )
 		);
@@ -349,6 +422,21 @@ class WP_Ban_Settings {
 	 */
 	public static function field_reverse_proxy() {
 		$options = WP_Ban_Options::get();
+
+		/*
+		 * A hidden 0 sharing the checkbox's name.
+		 *
+		 * An unticked checkbox posts nothing at all, and the sanitizer keeps
+		 * whatever a submission did not mention -- deliberately, because three
+		 * tabs write this one option row and none of them may blank another's
+		 * fields. Together those would mean this box could be ticked and never
+		 * unticked. PHP keeps the last of a repeated name, so ticked posts 1
+		 * and unticked posts 0, and the control always says something.
+		 */
+		printf(
+			'<input type="hidden" name="%s[reverse_proxy]" value="0" />',
+			esc_attr( WP_Ban_Options::OPTION )
+		);
 
 		printf(
 			'<label><input type="checkbox" name="%s[reverse_proxy]" value="1"%s /> %s</label>',
@@ -621,8 +709,9 @@ class WP_Ban_Settings {
 		 */
 		set_transient( self::notice_key(), $notice, MINUTE_IN_SECONDS );
 
-		// Post/Redirect/Get, so a refresh does not replay the reset.
-		wp_safe_redirect( self::url() );
+		// Post/Redirect/Get, so a refresh does not replay the reset -- and back
+		// to the tab the table lives on, not to whichever tab is the default.
+		wp_safe_redirect( self::url( 'stats' ) );
 		exit;
 	}
 
@@ -636,29 +725,91 @@ class WP_Ban_Settings {
 			return;
 		}
 
-		require_once WP_BAN_DIR . 'includes/class-wp-ban-stats-table.php';
+		$tab = self::current_tab();
 
 		echo '<div class="wrap">';
 		printf( '<h1>%s</h1>', esc_html__( 'Ban Options', 'wp-ban' ) );
 
 		/*
-		 * No settings_errors() call here on purpose. WordPress already prints
-		 * the errors queued by the sanitize callback for pages registered under
-		 * Settings, and common.js then relocates the notices into .wrap -- so
-		 * adding a manual call renders every warning twice, in what looks like
-		 * the plugin's own markup. Verified in a browser, not just asserted.
+		 * No settings_errors() call here on purpose, on any tab.
+		 *
+		 * §4.2.1 requires the notices to print on every tab, and they do: this
+		 * screen hangs off Settings, and admin-header.php includes
+		 * options-head.php -- which calls settings_errors() -- for anything
+		 * whose parent is options-general.php. That happens above .wrap for
+		 * whichever tab is being drawn, and common.js then relocates the
+		 * notices into it. A manual call here would render every warning twice,
+		 * in what looks like the plugin's own markup. Verified in a browser,
+		 * not just asserted, and a plugin on a top-level menu -- dispatched by
+		 * admin.php, which includes no such thing -- would need the opposite.
 		 */
 		self::reset_notice();
+		self::render_tabs( $tab );
 
-		echo '<form action="options.php" method="post">';
-		settings_fields( self::GROUP );
-		do_settings_sections( self::PAGE );
-		submit_button();
-		echo '</form>';
+		if ( 'stats' === $tab ) {
+			require_once WP_BAN_DIR . 'includes/class-wp-ban-stats-table.php';
 
-		self::render_stats();
+			self::render_stats();
+		} else {
+			self::render_form( $tab );
+		}
 
 		echo '</div>';
+	}
+
+	/**
+	 * The tab strip.
+	 *
+	 * @param string $current The tab being drawn.
+	 * @return void
+	 */
+	private static function render_tabs( $current ) {
+		echo '<nav class="nav-tab-wrapper">';
+
+		foreach ( self::tabs() as $slug => $label ) {
+			printf(
+				'<a href="%s" class="%s">%s</a>',
+				esc_url( self::url( $slug ) ),
+				esc_attr( $slug === $current ? 'nav-tab nav-tab-active' : 'nav-tab' ),
+				esc_html( $label )
+			);
+		}
+
+		echo '</nav>';
+	}
+
+	/**
+	 * The settings form for one tab.
+	 *
+	 * One group and one option row whichever tab this is; only the sections
+	 * drawn inside it differ.
+	 *
+	 * @param string $tab Tab slug.
+	 * @return void
+	 */
+	private static function render_form( $tab ) {
+		echo '<form action="options.php" method="post">';
+
+		settings_fields( self::GROUP );
+
+		/*
+		 * The tab travels with the save.
+		 *
+		 * options.php redirects to wp_get_referer(), and settings_fields()
+		 * already emitted a _wp_http_referer of its own. PHP keeps the last
+		 * input of a repeated name, so this one wins -- and the browser comes
+		 * back to the tab it submitted from rather than to the default one,
+		 * where the notice would be about fields that are not on screen.
+		 */
+		printf(
+			'<input type="hidden" name="_wp_http_referer" value="%s" />',
+			esc_url( self::url( $tab ) )
+		);
+
+		do_settings_sections( self::tab_page( $tab ) );
+		submit_button();
+
+		echo '</form>';
 	}
 
 	/**
@@ -718,9 +869,17 @@ class WP_Ban_Settings {
 			esc_html( number_format_i18n( WP_Ban_Stats::total() ) )
 		);
 
-		// No wp_nonce_field() here: $table->display() emits the bulk nonce this
-		// form is checked against, and a second _wpnonce input would override it.
-		printf( '<form method="post" action="%s">', esc_url( self::url() ) );
+		/*
+		 * Its own form and its own nonce: this is a list table, not a settings
+		 * form, and it posts to the screen rather than to options.php.
+		 *
+		 * No wp_nonce_field() here -- $table->display() emits the bulk nonce
+		 * this form is checked against, and a second _wpnonce input would
+		 * override it. Moving the table onto a tab changes only the action URL,
+		 * which now names the tab so the redirect after a bulk action comes
+		 * back to the table rather than to nothing in particular.
+		 */
+		printf( '<form method="post" action="%s">', esc_url( self::url( 'stats' ) ) );
 		$table->display();
 
 		printf(

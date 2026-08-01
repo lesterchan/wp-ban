@@ -14,7 +14,7 @@ Ban users by IP, IP range, host name, user agent and referrer URL from visiting 
 ## Description
 Banned visitors are served a custom message instead of your site. You can ban by IP address, IP range, host name, user agent or referrer URL, exclude specific addresses from ever being banned, and see how many times each banned visitor has tried to get in. Wildcards are supported throughout.
 
-Everything is configured under `Settings -> Ban`. The plugin will not let you ban the address, host name or user agent you are currently browsing with, so a wildcard that would lock you out of your own site is refused at save time and the screen says which entry it dropped.
+Everything is configured under `Settings -> Ban`, on three tabs: **Stats** for the attempt counters, **Settings** for the ban lists and the visitor IP options, and **Templates** for the banned message. The plugin will not let you ban the address, host name or user agent you are currently browsing with, so a wildcard that would lock you out of your own site is refused at save time and the screen says which entry it dropped.
 
 ### Features
 * Ban by IP address, IP range, host name, user agent or referrer URL
@@ -29,11 +29,17 @@ Everything is configured under `Settings -> Ban`. The plugin will not let you ba
 I spent most of my free time creating, updating, maintaining and supporting these plugins, if you really love my plugins and could spare me a couple of bucks, I will really appreciate it. If not feel free to use it without any obligations.
 
 ## Usage
-Go to `Settings -> Ban` and fill in the lists you want. Every list matches the whole value, so use `*` where you want a partial match: `192.168.1.*` bans that whole block, `EmailSiphon*` bans every user agent starting with that name.
+Go to `Settings -> Ban`. The screen has three tabs and opens on **Stats**.
+
+On the **Settings** tab, fill in the lists you want. Every list matches the whole value, so use `*` where you want a partial match: `192.168.1.*` bans that whole block, `EmailSiphon*` bans every user agent starting with that name.
 
 IP ranges are written as `start-end`, one per line. IPv4 and IPv6 are both supported, but a single range cannot mix the two.
 
-Ban stats sit below the settings on the same screen, twenty rows at a time, sortable by address or by attempts. Tick the rows you want cleared and use the bulk action, or tick **Reset every IP ban stat and the total** to start again.
+The **Templates** tab holds the banned message on its own, because it is a whole HTML document and burying it under six textareas made the screen a wall.
+
+The **Stats** tab is the attempt counters, twenty rows at a time, sortable by address or by attempts. Tick the rows you want cleared and use the bulk action, or tick **Reset every IP ban stat and the total** to start again.
+
+All three tabs write the same `wp_ban_options` row, so saving one never disturbs what the other two hold.
 
 ### Filters
 Use `wp_ban_enabled` to skip the ban check for some requests:
@@ -69,8 +75,8 @@ Your site is behind a reverse proxy, a load balancer or a CDN such as Cloudflare
 
 By default WP-Ban only trusts `REMOTE_ADDR`, because every other header carrying an IP address is set by the client — trusting them unconditionally means anyone can walk past an IP ban by sending a different value on each request. There are three ways to opt in, narrowest first:
 
-1. **Name the exact header** in the *Trusted header* field on the settings screen, for example `HTTP_CF_CONNECTING_IP`. Only that header is trusted. This is the safest option and the one to use if you know your stack.
-2. **Tick *This site is behind a reverse proxy*** on the settings screen, which trusts the usual set of forwarding headers.
+1. **Name the exact header** in the *Trusted header* field on the **Settings** tab, for example `HTTP_CF_CONNECTING_IP`. Only that header is trusted. This is the safest option and the one to use if you know your stack.
+2. **Tick *This site is behind a reverse proxy*** on the **Settings** tab, which trusts the usual set of forwarding headers.
 3. **Define the constant** in `wp-config.php`:
 
 ```php
@@ -113,10 +119,10 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 
 ## Screenshots
 
-1. Ban Options
-2. Ban Lists
-3. Banned Message and its preview
-4. Ban Stats
+1. The Stats tab
+2. The Settings tab: visitor IP address
+3. The Settings tab: ban lists
+4. The Templates tab: banned message and its preview
 
 ## Changelog
 ### 2.0.0
@@ -125,7 +131,7 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 * BREAKING: The ban page is now served as `403 Forbidden` instead of `200 OK`. Filter `wp_ban_status_code` to restore the old behaviour. See the FAQ.
 * BREAKING: The pre-2.0.0 global functions (`banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()`, `preg_match_wildcard()` and friends) have been removed. They were unprefixed and declared unconditionally; any code calling them must be updated.
 * BREAKING: The option rows are renamed. `banned_options` is now `wp_ban_options`, `banned_stats` is now `wp_ban_stats`, and `ban_db_version` is replaced by `wp_ban_version`. The ten pre-2.0.0 rows are folded into those three automatically and then deleted.
-* NEW: Settings moved to the Settings API, under `Settings -> Ban`.
+* NEW: Settings moved to the Settings API, under `Settings -> Ban`, split across three tabs: Stats, Settings and Templates. All three write one option row, and saving one leaves the other two untouched.
 * NEW: Ban stats are now a sortable, paginated list table with bulk delete. The old table rendered every recorded address on a single page.
 * NEW: IPv6 IP ranges are supported.
 * NEW: An optional trusted-header setting, plus the `WP_BAN_TRUST_PROXY` constant and `wp_ban_trust_proxy` filter.
@@ -152,7 +158,9 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 
 Requires WordPress 6.8 and PHP 8.2.
 
-**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site is behind a proxy, open `Settings -> Ban` and either name the exact header your proxy sets in the new *Trusted header* field, or re-tick *This site is behind a reverse proxy*. Otherwise do nothing.
+**The screen is three tabs now.** `Settings -> Ban` used to be one page carrying the proxy options, six ban lists, the banned message and the stats table end to end. It opens on **Stats**, with the lists under **Settings** and the message under **Templates**. Nothing moved in the database — all three tabs write the same `wp_ban_options` row — so a bookmark or a screenshot pointing at the old page still lands on the screen, just on the first tab. Add `&tab=settings` or `&tab=templates` to go straight to one.
+
+**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site is behind a proxy, open `Settings -> Ban`, go to the **Settings** tab, and either name the exact header your proxy sets in the new *Trusted header* field or re-tick *This site is behind a reverse proxy*. Otherwise do nothing.
 
 **Banned visitors get a 403, not a 200.** Uptime monitors and SEO tools that were treating the ban page as real content will start reporting 403 for banned addresses. Filter `wp_ban_status_code` to return 200 for the old behaviour.
 

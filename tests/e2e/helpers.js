@@ -32,6 +32,29 @@ const PLUGIN_ROOT = path.join( __dirname, '../..' );
 const SETTINGS_URL = '/wp-admin/options-general.php?page=wp-ban';
 const PLUGINS_URL = '/wp-admin/plugins.php';
 
+/**
+ * The screen's three tabs, by the slug the URL names them with.
+ *
+ * One page, one settings group and one option row behind all three -- the tab
+ * decides only which sections are drawn. Stats is first and is the default,
+ * because the counters are what somebody opens this screen to look at.
+ */
+const TABS = {
+	stats: 'Stats',
+	settings: 'Settings',
+	templates: 'Templates',
+};
+
+/**
+ * The address of one tab.
+ *
+ * @param {string} tab Tab slug.
+ * @return {string} The URL.
+ */
+function tabUrl( tab ) {
+	return `${ SETTINGS_URL }&tab=${ tab }`;
+}
+
 /** The option row every setting lives in. */
 const OPTION = 'wp_ban_options';
 
@@ -431,15 +454,25 @@ async function expectAllowed( page, url ) {
 }
 
 /**
- * Open the settings screen.
+ * Open one tab of the settings screen.
  *
- * @param {import('@playwright/test').Page} page Page under test.
- * @return {Promise<void>} Resolves once the screen is up.
+ * Defaults to Settings rather than to the screen's own default, because that is
+ * the tab almost every test here is about -- and because asking for a tab by
+ * name is what makes a test that lands on the wrong one fail here, once, rather
+ * than twenty assertions later looking like a missing field.
+ *
+ * @param {import('@playwright/test').Page} page  Page under test.
+ * @param {string}                          [tab] Tab slug.
+ * @return {Promise<void>} Resolves once the screen is up on that tab.
  */
-async function openSettings( page ) {
-	await page.goto( SETTINGS_URL );
+async function openSettings( page, tab = 'settings' ) {
+	await page.goto( tabUrl( tab ) );
 
 	await expect( page.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
+
+	// The tab strip is navigation, so the active tab is the one that says so --
+	// not merely the one whose fields happen to be on screen.
+	await expect( page.locator( '.nav-tab-active' ) ).toHaveText( TABS[ tab ] );
 }
 
 /**
@@ -533,6 +566,7 @@ module.exports = {
 	PLUGIN_FILE,
 	SETTINGS_URL,
 	STATS_OPTION,
+	TABS,
 	VERSION_OPTION,
 	asVisitor,
 	ban,
@@ -556,6 +590,7 @@ module.exports = {
 	setFixtureAnswer,
 	setOptions,
 	setStats,
+	tabUrl,
 	unique,
 	wpEval,
 };

@@ -261,6 +261,19 @@ class WP_Ban_Options {
 	 * Note that register_setting() hands the entire nested array to one
 	 * callback, so this is the single place the form's input is validated.
 	 *
+	 * **It starts from what is stored, not from the defaults.** A
+	 * sanitize_callback is handed only the fields the submitting form posted,
+	 * and this screen is three tabs posting disjoint sets of them: the ban
+	 * lists never travel with the banned message, and neither travels with the
+	 * other. Returning only what was given would therefore blank the message
+	 * template the moment somebody edited a ban list -- silently, with a
+	 * "Settings saved." notice over the top of it. Anything this submission did
+	 * not mention keeps the value it already had.
+	 *
+	 * That is also why every branch below is guarded by isset() rather than by
+	 * a default: "absent" now means "not this tab's business", and only a key
+	 * that actually arrived may overwrite anything.
+	 *
 	 * @param mixed $input Raw value submitted by the settings form.
 	 * @return array
 	 */
@@ -269,29 +282,54 @@ class WP_Ban_Options {
 			$input = array();
 		}
 
-		$clean = self::defaults();
+		$clean = self::get();
 
-		// An unchecked checkbox is absent from the POST body entirely.
-		$clean['reverse_proxy'] = ! empty( $input['reverse_proxy'] );
-
-		$header = isset( $input['ip_header'] ) ? sanitize_text_field( $input['ip_header'] ) : '';
-		// A header name is used as a $_SERVER key, so keep it to the shape PHP
-		// gives those keys rather than trusting whatever was typed.
-		$clean['ip_header'] = preg_match( '/^[A-Za-z0-9_]+$/', $header ) ? strtoupper( $header ) : '';
-
-		$lists = isset( $input['lists'] ) && is_array( $input['lists'] ) ? $input['lists'] : array();
-
-		foreach ( array_keys( $clean['lists'] ) as $key ) {
-			$clean['lists'][ $key ] = self::lines_to_list( isset( $lists[ $key ] ) ? $lists[ $key ] : '' );
+		/*
+		 * The checkbox always says something, because field_reverse_proxy()
+		 * prints a hidden 0 in front of it -- an unticked box posts nothing at
+		 * all, and "nothing" now means "keep what is stored", which would make
+		 * the box impossible to untick.
+		 */
+		if ( isset( $input['reverse_proxy'] ) ) {
+			$clean['reverse_proxy'] = ! empty( $input['reverse_proxy'] );
 		}
 
-		$clean['lists']['ips_range'] = self::filter_ranges( $clean['lists']['ips_range'] );
+		if ( isset( $input['ip_header'] ) ) {
+			$header = sanitize_text_field( $input['ip_header'] );
+			// A header name is used as a $_SERVER key, so keep it to the shape
+			// PHP gives those keys rather than trusting whatever was typed.
+			$clean['ip_header'] = preg_match( '/^[A-Za-z0-9_]+$/', $header ) ? strtoupper( $header ) : '';
+		}
 
-		$clean = self::protect_self( $clean );
+		$lists     = isset( $input['lists'] ) && is_array( $input['lists'] ) ? $input['lists'] : array();
+		$submitted = array();
 
-		$message = isset( $input['message'] ) ? (string) $input['message'] : '';
+		foreach ( array_keys( self::defaults()['lists'] ) as $key ) {
+			if ( ! isset( $lists[ $key ] ) ) {
+				continue;
+			}
 
-		$clean['message'] = '' === trim( $message ) ? self::default_message() : wp_kses( $message, self::allowed_html() );
+			$clean['lists'][ $key ] = self::lines_to_list( $lists[ $key ] );
+			$submitted[]            = $key;
+		}
+
+		if ( in_array( 'ips_range', $submitted, true ) ) {
+			$clean['lists']['ips_range'] = self::filter_ranges( $clean['lists']['ips_range'] );
+		}
+
+		/*
+		 * Only over the lists this submission carried. Re-running it over the
+		 * stored ones would let a save from another tab quietly delete entries
+		 * an owner added from a different address, and complain about them on a
+		 * screen that never showed them.
+		 */
+		$clean = self::protect_self( $clean, $submitted );
+
+		if ( isset( $input['message'] ) ) {
+			$message = (string) $input['message'];
+
+			$clean['message'] = '' === trim( $message ) ? self::default_message() : wp_kses( $message, self::allowed_html() );
+		}
 
 		self::flush_cache();
 
@@ -334,10 +372,17 @@ class WP_Ban_Options {
 	 * Until 2.0.0 this only ran when the current user's login was literally
 	 * "admin", so everyone else could lock themselves out of their own site.
 	 *
-	 * @param array $clean Sanitized options.
+	 * @param array    $clean     Sanitized options.
+	 * @param string[] $submitted List keys this submission actually carried.
 	 * @return array
 	 */
-	private static function protect_self( $clean ) {
+	private static function protect_self( $clean, $submitted ) {
+		// Nothing was posted that could ban anybody, so there is nothing to
+		// check -- and no reverse DNS lookup to pay for either.
+		if ( empty( $submitted ) ) {
+			return $clean;
+		}
+
 		/**
 		 * Filters whether the current administrator is protected from banning themselves.
 		 *
@@ -373,7 +418,7 @@ class WP_Ban_Options {
 		foreach ( $checks as $key => $check ) {
 			list( $subject, $message ) = $check;
 
-			if ( '' === $subject ) {
+			if ( '' === $subject || ! in_array( $key, $submitted, true ) ) {
 				continue;
 			}
 
@@ -392,42 +437,46 @@ class WP_Ban_Options {
 		}
 
 		// Referrers are matched against this site's own URLs, not the visitor.
-		$kept = array();
+		if ( in_array( 'referers', $submitted, true ) ) {
+			$kept = array();
 
-		foreach ( $clean['lists']['referers'] as $pattern ) {
-			if ( self::is_own_site( $pattern ) ) {
-				self::self_ban_notice(
-					/* translators: %s: the referrer pattern that was not added. */
-					__( 'This referrer &#8220;%s&#8221; belongs to this site, so it was not added to the ban list.', 'wp-ban' ),
-					$pattern
-				);
-				continue;
+			foreach ( $clean['lists']['referers'] as $pattern ) {
+				if ( self::is_own_site( $pattern ) ) {
+					self::self_ban_notice(
+						/* translators: %s: the referrer pattern that was not added. */
+						__( 'This referrer &#8220;%s&#8221; belongs to this site, so it was not added to the ban list.', 'wp-ban' ),
+						$pattern
+					);
+					continue;
+				}
+
+				$kept[] = $pattern;
 			}
 
-			$kept[] = $pattern;
+			$clean['lists']['referers'] = $kept;
 		}
-
-		$clean['lists']['referers'] = $kept;
 
 		// A range is dropped only when it would swallow the current address.
-		$kept = array();
+		if ( in_array( 'ips_range', $submitted, true ) ) {
+			$kept = array();
 
-		foreach ( $clean['lists']['ips_range'] as $range ) {
-			$bounds = WP_Ban_IP::parse_range( $range );
+			foreach ( $clean['lists']['ips_range'] as $range ) {
+				$bounds = WP_Ban_IP::parse_range( $range );
 
-			if ( $bounds && '' !== $ip && WP_Ban_IP::in_range( $ip, $bounds[0], $bounds[1] ) ) {
-				self::self_ban_notice(
-					/* translators: %s: the IP range that was not added. */
-					__( 'Your IP falls inside the range &#8220;%s&#8221;, so it was not added to the ban list.', 'wp-ban' ),
-					$range
-				);
-				continue;
+				if ( $bounds && '' !== $ip && WP_Ban_IP::in_range( $ip, $bounds[0], $bounds[1] ) ) {
+					self::self_ban_notice(
+						/* translators: %s: the IP range that was not added. */
+						__( 'Your IP falls inside the range &#8220;%s&#8221;, so it was not added to the ban list.', 'wp-ban' ),
+						$range
+					);
+					continue;
+				}
+
+				$kept[] = $range;
 			}
 
-			$kept[] = $range;
+			$clean['lists']['ips_range'] = $kept;
 		}
-
-		$clean['lists']['ips_range'] = $kept;
 
 		return $clean;
 	}

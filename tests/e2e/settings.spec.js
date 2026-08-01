@@ -32,6 +32,7 @@ const {
 	saveSettings,
 	setFixtureAnswer,
 	setOptions,
+	tabUrl,
 	unique,
 	wpEval,
 } = require( './helpers.js' );
@@ -124,16 +125,111 @@ test.describe( 'The settings screen', () => {
 		}
 
 		await expect( page.locator( '#wp-ban-ip-header' ) ).toHaveValue( '' );
-		await expect( page.locator( 'input[name="wp_ban_options[reverse_proxy]"]' ) ).not.toBeChecked();
-
-		// The shipped message, which is a whole HTML document because it is
-		// served instead of WordPress and has no theme behind it.
-		await expect( page.locator( '#wp-ban-message' ) ).toHaveValue( /You Are Banned\./ );
-		await expect( page.locator( '#wp-ban-message' ) ).toHaveValue( /id="wp-ban-container"/ );
+		await expect(
+			page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' ),
+		).not.toBeChecked();
 
 		// The screen tells the owner who it thinks they are, which is the whole
 		// basis of the self-ban guard below.
 		expect( await ownDetail( page, 'Your IP' ) ).not.toBe( '' );
+
+		// The shipped message, which is a whole HTML document because it is
+		// served instead of WordPress and has no theme behind it. On its own
+		// tab, because a template is a wall of text that buries everything
+		// above it.
+		await openSettings( page, 'templates' );
+
+		await expect( page.locator( '#wp-ban-message' ) ).toHaveValue( /You Are Banned\./ );
+		await expect( page.locator( '#wp-ban-message' ) ).toHaveValue( /id="wp-ban-container"/ );
+	} );
+
+	test( 'the screen is three tabs, and each draws only what it owns', async ( { page } ) => {
+		await openSettings( page, 'stats' );
+
+		// Named for what they hold. "Ban Settings" would repeat the heading
+		// directly above them.
+		await expect( page.locator( '.nav-tab-wrapper' ) ).toHaveText( /StatsSettingsTemplates/ );
+
+		// The counters, and nothing an owner could save by accident.
+		await expect( page.locator( '.wp-list-table' ) ).toBeVisible();
+		await expect( page.locator( '#wp-ban-message' ) ).toHaveCount( 0 );
+		await expect( page.locator( '#wp-ban-list-ips' ) ).toHaveCount( 0 );
+
+		await openSettings( page, 'settings' );
+
+		await expect( page.locator( '#wp-ban-list-ips' ) ).toBeVisible();
+		await expect( page.locator( '#wp-ban-message' ) ).toHaveCount( 0 );
+		await expect( page.locator( '.wp-list-table' ) ).toHaveCount( 0 );
+
+		await openSettings( page, 'templates' );
+
+		await expect( page.locator( '#wp-ban-message' ) ).toBeVisible();
+		await expect( page.locator( '#wp-ban-list-ips' ) ).toHaveCount( 0 );
+		await expect( page.locator( '.wp-list-table' ) ).toHaveCount( 0 );
+	} );
+
+	test( 'the tab strip navigates, and the screen opens on Stats', async ( { page } ) => {
+		await page.goto( SETTINGS_URL );
+
+		// No tab in the URL: the counters are what somebody opens this screen
+		// to look at, so they are what a bare link lands on.
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Stats' );
+
+		await page.getByRole( 'link', { name: 'Templates', exact: true } ).click();
+
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Templates' );
+		await expect( page.locator( '#wp-ban-message' ) ).toBeVisible();
+	} );
+
+	/**
+	 * The regression the split invites, and it is silent.
+	 *
+	 * register_setting()'s sanitize_callback is handed only the fields the
+	 * submitting form posted, so a sanitizer that returned just what it was
+	 * given would blank the banned message the moment somebody edited a ban
+	 * list -- with "Settings saved." on the screen and nothing to say the
+	 * template had gone. Driven through the browser rather than through the
+	 * option, because what does the damage is a real form post carrying one
+	 * tab's fields and no others.
+	 */
+	test( 'saving one tab leaves the other tabs alone', async ( { page } ) => {
+		const marker = unique( 'Keep me' );
+
+		await openSettings( page, 'templates' );
+		await page.locator( '#wp-ban-message' ).fill(
+			`<html><body><div id="wp-ban-container"><p>${ marker }</p></div></body></html>`,
+		);
+		await saveSettings( page );
+
+		// A save comes back to the tab it was submitted from, not to the first
+		// one -- otherwise the notice lands on a screen showing other fields.
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Templates' );
+
+		await openSettings( page, 'settings' );
+		await fillLists( page, { ips: [ '203.0.113.7' ] } );
+		await page.locator( '#wp-ban-ip-header' ).fill( 'HTTP_X_REAL_IP' );
+		await saveSettings( page );
+
+		await expect( page.locator( '.nav-tab-active' ) ).toHaveText( 'Settings' );
+
+		const stored = getStoredOptions();
+
+		expect( stored.message ).toContain( marker );
+		expect( stored.lists.ips ).toEqual( [ '203.0.113.7' ] );
+
+		// And back the other way: the Templates tab posts one field, and must
+		// not empty the six lists it never showed.
+		await openSettings( page, 'templates' );
+		await page.locator( '#wp-ban-message' ).fill(
+			'<html><body><div id="wp-ban-container"><p>Rewritten</p></div></body></html>',
+		);
+		await saveSettings( page );
+
+		const after = getStoredOptions();
+
+		expect( after.message ).toContain( 'Rewritten' );
+		expect( after.lists.ips ).toEqual( [ '203.0.113.7' ] );
+		expect( after.ip_header ).toBe( 'HTTP_X_REAL_IP' );
 	} );
 
 	test( 'all six lists save, one entry per line, and reach the row', async ( { page } ) => {
@@ -250,7 +346,13 @@ test.describe( 'The settings screen', () => {
 	test( 'the reverse proxy box saves, and can be unticked again', async ( { page } ) => {
 		await openSettings( page );
 
-		const box = page.locator( 'input[name="wp_ban_options[reverse_proxy]"]' );
+		// By type as well as by name: a hidden input shares the checkbox's name,
+		// which is what makes unticking it say anything at all.
+		const box = page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' );
+
+		await expect(
+			page.locator( 'input[type="hidden"][name="wp_ban_options[reverse_proxy]"]' ),
+		).toHaveValue( '0' );
 
 		await box.check();
 		await saveSettings( page );
@@ -260,7 +362,9 @@ test.describe( 'The settings screen', () => {
 		// A checkbox that saves when ticked and cannot be unticked again is a
 		// bug this collection has shipped before: an unchecked box posts nothing
 		// at all, so a sanitizer that only reads the keys it was sent keeps the
-		// old value forever.
+		// old value forever. This screen's sanitizer does exactly that -- it
+		// has to, because three tabs write one row -- so the hidden 0 above is
+		// what keeps the box switchable.
 		await openSettings( page );
 		await expect( box ).toBeChecked();
 		await box.uncheck();
@@ -274,7 +378,7 @@ test.describe( 'The settings screen', () => {
 	} ) => {
 		const marker = unique( 'Go away' );
 
-		await openSettings( page );
+		await openSettings( page, 'templates' );
 
 		await page.locator( '#wp-ban-message' ).fill(
 			`<html><body><div id="wp-ban-container"><p>${ marker }</p></div></body></html>`,
@@ -287,7 +391,7 @@ test.describe( 'The settings screen', () => {
 		// banned visitor nothing and an owner debugging it even less -- so an
 		// empty box means "give me the shipped one back" rather than "store
 		// nothing".
-		await openSettings( page );
+		await openSettings( page, 'templates' );
 		await page.locator( '#wp-ban-message' ).fill( '   ' );
 		await saveSettings( page );
 
@@ -297,7 +401,7 @@ test.describe( 'The settings screen', () => {
 	test( 'a script in the banned message is stripped, and the document tags are kept', async ( {
 		page,
 	} ) => {
-		await openSettings( page );
+		await openSettings( page, 'templates' );
 
 		await page.locator( '#wp-ban-message' ).fill(
 			'<html><head><title>Gone</title></head><body><div id="wp-ban-container">' +
@@ -317,7 +421,7 @@ test.describe( 'The settings screen', () => {
 	} );
 
 	test( 'Restore Default Template puts the shipped message back', async ( { page } ) => {
-		await openSettings( page );
+		await openSettings( page, 'templates' );
 
 		const textarea = page.locator( '#wp-ban-message' );
 
@@ -341,9 +445,14 @@ test.describe( 'The settings screen', () => {
 				'<html><body><div id="wp-ban-container"><p>You are %USER_IP%, seen %USER_ATTEMPTS_COUNT% times</p></div></body></html>',
 		} );
 
-		await openSettings( page );
+		// Who the screen thinks this request is comes from the Settings tab,
+		// where the proxy section prints it; the template and its preview live
+		// on the next tab along.
+		await openSettings( page, 'settings' );
 
 		const ip = await ownDetail( page, 'Your IP' );
+
+		await openSettings( page, 'templates' );
 
 		// By the attribute the script binds to, not by the label. The label is
 		// the thing under test -- it swaps to "Show Template" and back -- so a
@@ -464,10 +573,14 @@ test.describe( 'The settings screen', () => {
 			await subscriber.goto( SETTINGS_URL );
 			await expect( subscriber.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
 
-			// The form itself, not just the wrapper: render() returns early on a
-			// failed capability check, which would leave the heading printed by
-			// nothing and every field absent.
+			// The forms themselves, not just the wrapper: render() returns early
+			// on a failed capability check, which would leave the heading
+			// printed by nothing and every field absent. Both tabs, because the
+			// gate is on the screen rather than on any one of them.
+			await subscriber.goto( tabUrl( 'settings' ) );
 			await expect( subscriber.locator( '#wp-ban-list-ips' ) ).toBeAttached();
+
+			await subscriber.goto( tabUrl( 'templates' ) );
 			await expect( subscriber.locator( '#wp-ban-message' ) ).toBeAttached();
 
 			// And the preview, which is checked separately and could have been

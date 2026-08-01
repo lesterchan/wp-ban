@@ -55,6 +55,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function tear_down() {
 		remove_filter( 'wp_doing_ajax', '__return_true' );
 
+		unset( $_GET['tab'] );
+
 		parent::tear_down();
 	}
 
@@ -65,9 +67,16 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * likeliest place for a rendering bug, so diagnostics are collected too:
 	 * asserting the page is merely non-empty proves very little.
 	 *
+	 * @param string $tab Tab to draw. The screen's default when omitted.
 	 * @return string
 	 */
-	private function render() {
+	private function render( $tab = '' ) {
+		if ( '' === $tab ) {
+			unset( $_GET['tab'] );
+		} else {
+			$_GET['tab'] = $tab;
+		}
+
 		$notices = array();
 
 		set_error_handler(
@@ -90,10 +99,15 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		return $html;
 	}
 
-	public function test_the_screen_renders_without_diagnostics() {
-		$html = $this->render();
+	/**
+	 * @dataProvider data_tabs
+	 *
+	 * @param string $tab Tab slug.
+	 */
+	public function test_every_tab_renders_without_diagnostics( $tab ) {
+		$html = $this->render( $tab );
 
-		$this->assertGreaterThan( 2000, strlen( $html ) );
+		$this->assertGreaterThan( 1000, strlen( $html ), "the {$tab} tab rendered almost nothing" );
 		$this->assertStringNotContainsString( '<?php', $html );
 		$this->assertStringNotContainsString( 'Fatal error', $html );
 	}
@@ -102,20 +116,140 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * A /* translators: *​/ comment that drifts into HTML context is printed to
 	 * the user, and a value escaped twice renders as a visible &amp;amp;.
 	 * Neither is caught by lint or by a smoke test.
+	 *
+	 * @dataProvider data_tabs
+	 *
+	 * @param string $tab Tab slug.
 	 */
-	public function test_the_screen_is_free_of_the_usual_rendering_damage() {
-		$html = $this->render();
+	public function test_no_tab_carries_the_usual_rendering_damage( $tab ) {
+		$html = $this->render( $tab );
 
 		$this->assertStringNotContainsString( 'translators:', $html );
 		$this->assertStringNotContainsString( '&amp;amp;', $html );
 		$this->assertStringNotContainsString( '&amp;quot;', $html );
 	}
 
-	public function test_the_form_posts_to_options_php_with_the_settings_group() {
-		$html = $this->render();
+	public function data_tabs() {
+		return array(
+			'stats'     => array( 'stats' ),
+			'settings'  => array( 'settings' ),
+			'templates' => array( 'templates' ),
+		);
+	}
+
+	/**
+	 * The three tabs, named exactly as the standard names them.
+	 *
+	 * "Ban Settings" and "Ban Stats" would repeat the heading above them, which
+	 * is the drift §4.2.1 exists to stop.
+	 */
+	public function test_the_tabs_are_stats_settings_and_templates_in_that_order() {
+		$this->assertSame(
+			array( 'stats', 'settings', 'templates' ),
+			array_keys( WP_Ban_Settings::tabs() )
+		);
+
+		$this->assertSame(
+			array( 'Stats', 'Settings', 'Templates' ),
+			array_values( WP_Ban_Settings::tabs() )
+		);
+	}
+
+	/**
+	 * The counters are what somebody opens this screen to look at.
+	 */
+	public function test_the_screen_opens_on_the_stats_tab() {
+		unset( $_GET['tab'] );
+
+		$this->assertSame( 'stats', WP_Ban_Settings::current_tab() );
+
+		$_GET['tab'] = 'not-a-tab';
+
+		$this->assertSame( 'stats', WP_Ban_Settings::current_tab(), 'an unknown tab must fall back, not render nothing' );
+
+		$_GET['tab'] = 'templates';
+
+		$this->assertSame( 'templates', WP_Ban_Settings::current_tab() );
+	}
+
+	/**
+	 * @dataProvider data_tabs
+	 *
+	 * @param string $tab Tab slug.
+	 */
+	public function test_every_tab_links_to_the_other_two_and_marks_itself_active( $tab ) {
+		$html = $this->render( $tab );
+
+		$this->assertStringContainsString( 'nav-tab-wrapper', $html );
+
+		foreach ( array_keys( WP_Ban_Settings::tabs() ) as $slug ) {
+			$this->assertStringContainsString(
+				'tab=' . $slug,
+				$html,
+				"the {$tab} tab does not link to {$slug}"
+			);
+		}
+
+		// One active tab, and it is this one.
+		$this->assertSame( 1, substr_count( $html, 'nav-tab-active' ) );
+
+		preg_match( '/href="([^"]*)" class="nav-tab nav-tab-active"/', $html, $matches );
+
+		$this->assertNotEmpty( $matches, 'no tab is marked active' );
+		$this->assertStringContainsString( 'tab=' . $tab, html_entity_decode( $matches[1] ) );
+	}
+
+	public function test_the_stats_tab_is_a_table_rather_than_a_settings_form() {
+		$html = $this->render( 'stats' );
+
+		$this->assertStringNotContainsString( 'action="options.php"', $html );
+		$this->assertStringContainsString( 'wp-list-table', $html );
+	}
+
+	/**
+	 * @dataProvider data_form_tabs
+	 *
+	 * @param string $tab Tab slug.
+	 */
+	public function test_a_form_tab_posts_to_options_php_with_the_one_settings_group( $tab ) {
+		$html = $this->render( $tab );
 
 		$this->assertStringContainsString( 'action="options.php"', $html );
 		$this->assertStringContainsString( WP_Ban_Settings::GROUP, $html );
+
+		// One group across all three tabs, so one option row behind them.
+		$this->assertSame( 1, substr_count( $html, 'option_page' ) );
+	}
+
+	/**
+	 * The tab has to survive the round trip through options.php, or a save from
+	 * Templates lands back on Stats with a notice about fields nobody can see.
+	 *
+	 * @dataProvider data_form_tabs
+	 *
+	 * @param string $tab Tab slug.
+	 */
+	public function test_a_form_tab_carries_itself_through_the_save( $tab ) {
+		$html = $this->render( $tab );
+
+		preg_match_all( '/name="_wp_http_referer" value="([^"]*)"/', $html, $matches );
+
+		$this->assertNotEmpty( $matches[1], 'the form posts no referer at all' );
+
+		// PHP keeps the last of a repeated name, and settings_fields() emitted
+		// one of its own first, so the last is the one that decides.
+		$this->assertStringContainsString(
+			'tab=' . $tab,
+			html_entity_decode( end( $matches[1] ) ),
+			'the save would come back to the wrong tab'
+		);
+	}
+
+	public function data_form_tabs() {
+		return array(
+			'settings'  => array( 'settings' ),
+			'templates' => array( 'templates' ),
+		);
 	}
 
 	/**
@@ -128,7 +262,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_every_list_has_a_textarea( $key ) {
 		$this->assertStringContainsString(
 			WP_Ban_Options::OPTION . '[lists][' . $key . ']',
-			$this->render()
+			$this->render( 'settings' )
 		);
 	}
 
@@ -143,12 +277,59 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		);
 	}
 
-	public function test_the_proxy_and_message_fields_are_present() {
-		$html = $this->render();
+	/**
+	 * Each field is on exactly one tab, and it is the tab it belongs to.
+	 *
+	 * The half that matters is the absence: a section left registered against
+	 * the old page slug would draw on every tab, which is the failure this
+	 * split is meant to remove.
+	 */
+	public function test_each_field_is_on_its_own_tab_and_not_on_the_others() {
+		$settings  = $this->render( 'settings' );
+		$templates = $this->render( 'templates' );
+		$stats     = $this->render( 'stats' );
 
-		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[reverse_proxy]', $html );
-		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[ip_header]', $html );
-		$this->assertStringContainsString( WP_Ban_Options::OPTION . '[message]', $html );
+		$proxy   = WP_Ban_Options::OPTION . '[reverse_proxy]';
+		$header  = WP_Ban_Options::OPTION . '[ip_header]';
+		$lists   = WP_Ban_Options::OPTION . '[lists]';
+		$message = WP_Ban_Options::OPTION . '[message]';
+
+		$this->assertStringContainsString( $proxy, $settings );
+		$this->assertStringContainsString( $header, $settings );
+		$this->assertStringContainsString( $lists, $settings );
+		$this->assertStringNotContainsString( $message, $settings, 'the message template leaked onto the Settings tab' );
+
+		$this->assertStringContainsString( $message, $templates );
+		$this->assertStringNotContainsString( $proxy, $templates, 'the proxy field leaked onto the Templates tab' );
+		$this->assertStringNotContainsString( $lists, $templates, 'the ban lists leaked onto the Templates tab' );
+
+		foreach ( array( $proxy, $header, $lists, $message ) as $field ) {
+			$this->assertStringNotContainsString( $field, $stats, 'a settings field leaked onto the Stats tab' );
+		}
+	}
+
+	/**
+	 * The checkbox must post something even when it is unticked.
+	 *
+	 * The sanitizer keeps whatever a submission did not mention, because three
+	 * tabs write one row. Without the hidden 0 in front of it this box could be
+	 * ticked and never unticked -- the failure §7.5 records an e2e suite
+	 * finding on another plugin, arriving here the moment the merge did.
+	 */
+	public function test_the_reverse_proxy_checkbox_posts_a_zero_when_unticked() {
+		$html = $this->render( 'settings' );
+
+		$this->assertStringContainsString(
+			'<input type="hidden" name="' . WP_Ban_Options::OPTION . '[reverse_proxy]" value="0" />',
+			$html
+		);
+
+		$this->set_options( array( 'reverse_proxy' => true ) );
+
+		update_option( WP_Ban_Options::OPTION, array( 'reverse_proxy' => '0' ) );
+		WP_Ban_Options::flush_cache();
+
+		$this->assertFalse( WP_Ban_Options::get()['reverse_proxy'], 'the box could not be unticked' );
 	}
 
 	/**
@@ -159,7 +340,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * is emitted as code spans outside the translated strings to prevent that.
 	 */
 	public function test_the_message_tokens_render_literally() {
-		$html = $this->render();
+		$html = $this->render( 'templates' );
 
 		foreach ( array( '%SITE_NAME%', '%SITE_URL%', '%USER_IP%', '%USER_HOSTNAME%', '%USER_ATTEMPTS_COUNT%', '%TOTAL_ATTEMPTS_COUNT%' ) as $token ) {
 			$this->assertStringContainsString( $token, $html, "{$token} is not offered on the screen" );
@@ -173,7 +354,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'referers' => array( 'http://*.spam.test/?a=1&b=2' ) ) )
 		);
 
-		$html = $this->render();
+		$html = $this->render( 'settings' );
 
 		// esc_textarea() is the escaping at the sink, so the raw & appears as
 		// a single &amp; and nothing more.
@@ -184,7 +365,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_stats_table_lists_recorded_addresses() {
 		WP_Ban_Stats::record( '203.0.113.99' );
 
-		$html = $this->render();
+		$html = $this->render( 'stats' );
 
 		$this->assertStringContainsString( '203.0.113.99', $html );
 		$this->assertStringContainsString( '_wpnonce', $html );
@@ -344,6 +525,70 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	}
 
 	/**
+	 * Saving one tab must leave the other two exactly as they were.
+	 *
+	 * This is the regression the split invites and it is silent.
+	 * register_setting()'s sanitize_callback is handed only the fields the
+	 * submitting form posted, so a sanitizer that returned just what it was
+	 * given would blank the banned message the moment somebody edited a ban
+	 * list -- with "Settings saved." on the screen and nothing to say the
+	 * template had gone. Both directions, because either tab can be the one
+	 * that does the damage.
+	 */
+	public function test_saving_one_tab_leaves_the_other_tabs_values_alone() {
+		$message = '<div id="wp-ban-container"><p>A carefully written message</p></div>';
+
+		$this->set_options(
+			array(
+				'reverse_proxy' => true,
+				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
+				'lists'         => array(
+					'ips'         => array( '192.168.77.10' ),
+					'user_agents' => array( 'EvilBot*' ),
+				),
+				'message'       => $message,
+			)
+		);
+
+		// The Settings tab, posting exactly what it owns and nothing else.
+		update_option(
+			WP_Ban_Options::OPTION,
+			array(
+				'reverse_proxy' => '0',
+				'ip_header'     => 'HTTP_X_REAL_IP',
+				'lists'         => array(
+					'ips'         => '203.0.113.5',
+					'ips_range'   => '',
+					'hosts'       => '',
+					'referers'    => '',
+					'user_agents' => 'EvilBot*',
+					'exclude_ips' => '',
+				),
+			)
+		);
+
+		WP_Ban_Options::flush_cache();
+
+		$this->assertSame( $message, WP_Ban_Options::message(), 'saving the Settings tab destroyed the message template' );
+		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertFalse( WP_Ban_Options::get()['reverse_proxy'] );
+		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'] );
+
+		// And the Templates tab, which posts one field.
+		update_option(
+			WP_Ban_Options::OPTION,
+			array( 'message' => '<div id="wp-ban-container"><p>Rewritten</p></div>' )
+		);
+
+		WP_Ban_Options::flush_cache();
+
+		$this->assertStringContainsString( 'Rewritten', WP_Ban_Options::message() );
+		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ), 'saving the Templates tab emptied a ban list' );
+		$this->assertSame( array( 'EvilBot*' ), WP_Ban_Options::list_of( 'user_agents' ), 'saving the Templates tab emptied a ban list' );
+		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'], 'saving the Templates tab reset the trusted header' );
+	}
+
+	/**
 	 * The point of the consolidation: three prefixed rows where there were ten
 	 * unprefixed ones.
 	 */
@@ -438,7 +683,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * .wrap. A manual settings_errors() call in render() therefore rendered
 	 * every warning twice, inside what looked like the plugin's own markup.
 	 */
-	public function test_validation_notices_are_not_printed_twice() {
+	public function test_validation_notices_are_not_printed_twice_on_any_tab() {
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.44';
 
 		// Queue one of each: a rejected range and a self-ban.
@@ -453,12 +698,16 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$this->assertNotEmpty( get_settings_errors( WP_Ban_Options::OPTION ) );
 
-		ob_start();
-		WP_Ban_Settings::render();
-		$html = (string) ob_get_clean();
+		foreach ( array_keys( WP_Ban_Settings::tabs() ) as $tab ) {
+			$_GET['tab'] = $tab;
 
-		$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_bad_range' ) );
-		$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_self' ) );
+			ob_start();
+			WP_Ban_Settings::render();
+			$html = (string) ob_get_clean();
+
+			$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_bad_range' ), "the {$tab} tab printed the notice a second time" );
+			$this->assertSame( 0, substr_count( $html, 'setting-error-wp_ban_self' ), "the {$tab} tab printed the notice a second time" );
+		}
 	}
 
 	/**
@@ -468,18 +717,19 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * "bulk-{$plural}". A second wp_nonce_field() in the same form is
 	 * overridden by it -- both inputs are named _wpnonce -- so every bulk
 	 * action failed its referer check with "An error occurred."
+	 *
+	 * Moving the table onto a tab of its own must not disturb that, which is
+	 * why this asserts the count as well as the value.
 	 */
 	public function test_the_stats_form_uses_the_list_table_nonce() {
 		$this->assertSame( 'bulk-' . WP_Ban_Settings::STATS_PLURAL, WP_Ban_Settings::STATS_NONCE );
 
 		WP_Ban_Stats::record( '203.0.113.99' );
 
-		$html = $this->render();
+		$stats_form = $this->render( 'stats' );
 
-		// Exactly one _wpnonce in the stats form: the table's own. Slice from
-		// the Ban Stats heading, since the settings form above has one too.
-		$stats_form = substr( $html, (int) strpos( $html, 'Ban Stats' ) );
-
+		// Exactly one _wpnonce on the tab: the table's own. There is no settings
+		// form here to contribute a second.
 		$this->assertSame( 1, substr_count( $stats_form, 'name="_wpnonce"' ) );
 
 		// And it must be the nonce handle_stats_actions() checks against.
@@ -487,11 +737,59 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$this->assertNotEmpty( $m, 'the stats form has no nonce at all' );
 		$this->assertSame( 1, wp_verify_nonce( $m[1], WP_Ban_Settings::STATS_NONCE ) );
+
+		// And the form must post back to the tab the table is on, so the
+		// redirect after a bulk action returns to it.
+		$this->assertStringContainsString( 'tab=stats', html_entity_decode( $stats_form ) );
 	}
 
-	public function test_the_settings_link_points_at_the_screen() {
+	/**
+	 * A bulk action still works now that the table is on a tab.
+	 *
+	 * The whole round trip: the table's own nonce, the selected rows, the
+	 * redirect that stops a refresh replaying the reset, and the tab it comes
+	 * back to.
+	 */
+	public function test_a_bulk_reset_still_works_from_the_stats_tab() {
+		WP_Ban_Stats::record( '203.0.113.1' );
+		WP_Ban_Stats::record( '203.0.113.2' );
+
+		$_REQUEST['action']   = 'reset';
+		$_REQUEST['ips']      = array( '203.0.113.1' );
+		$_REQUEST['_wpnonce'] = wp_create_nonce( WP_Ban_Settings::STATS_NONCE );
+		$_GET['tab']          = 'stats';
+
+		$redirect = '';
+
+		$listener = static function ( $location ) use ( &$redirect ) {
+			$redirect = $location;
+
+			throw new WPDieException( 'redirected' );
+		};
+
+		add_filter( 'wp_redirect', $listener );
+
+		try {
+			WP_Ban_Settings::handle_stats_actions();
+		} catch ( WPDieException $e ) {
+			unset( $e );
+		} finally {
+			remove_filter( 'wp_redirect', $listener );
+			unset( $_REQUEST['action'], $_REQUEST['ips'], $_REQUEST['_wpnonce'] );
+		}
+
+		$this->assertArrayNotHasKey( '203.0.113.1', WP_Ban_Stats::get()['users'], 'the selected row was not reset' );
+		$this->assertArrayHasKey( '203.0.113.2', WP_Ban_Stats::get()['users'], 'an unselected row was reset too' );
+		$this->assertStringContainsString( 'tab=stats', $redirect, 'the reset came back to the wrong tab' );
+	}
+
+	public function test_the_settings_link_points_at_the_settings_tab() {
 		$links = WP_Ban_Settings::action_links( array() );
 
 		$this->assertStringContainsString( 'page=' . WP_Ban_Settings::PAGE, $links[0] );
+
+		// Somebody who clicked "Settings" came to change one, not to read
+		// counters, so the link skips the screen's default tab.
+		$this->assertStringContainsString( 'tab=settings', html_entity_decode( $links[0] ) );
 	}
 }
