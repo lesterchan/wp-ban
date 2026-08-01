@@ -86,7 +86,19 @@ function getLegacyRows() {
 }
 
 /**
- * Whether an option row is autoloaded, as the database records it.
+ * Whether an option row is autoloaded.
+ *
+ * Answered through core's own wp_autoload_values_to_autoload() rather than by
+ * comparing the column to the string 'yes'. WordPress 6.6 replaced that
+ * vocabulary: the column now holds 'on', 'off', 'auto', 'auto-on' or
+ * 'auto-off', and a row written without an explicit autoload argument gets
+ * 'auto'. Against the 7.0.2 this environment runs, a literal 'yes' comparison
+ * asks a question the database stopped answering two years ago -- the legacy
+ * fixture really was autoloaded and the assertion read 'auto' and failed.
+ *
+ * The two callers are about whether a row is read on every request, not about
+ * how that fact is spelled, so the spelling is normalised here and they keep
+ * saying 'yes' and 'no'.
  *
  * @param {string} name Option name.
  * @return {string} 'yes', 'no', or '' when there is no row.
@@ -94,9 +106,19 @@ function getLegacyRows() {
 function autoloadOf( name ) {
 	return wpEval(
 		`global $wpdb;
-		echo '<<<' . (string) $wpdb->get_var( $wpdb->prepare(
+		$value = $wpdb->get_var( $wpdb->prepare(
 			"SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", '${ name }'
-		) ) . '>>>';`,
+		) );
+
+		if ( null === $value ) {
+			echo '<<<>>>';
+		} else {
+			$autoloaded = function_exists( 'wp_autoload_values_to_autoload' )
+				? wp_autoload_values_to_autoload()
+				: array( 'yes' );
+
+			echo '<<<' . ( in_array( $value, $autoloaded, true ) ? 'yes' : 'no' ) . '>>>';
+		}`,
 	);
 }
 
@@ -195,7 +217,13 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 		await expect( listField( page, 'referers' ) ).toHaveValue(
 			'https://spam.example/?a=1&b=2',
 		);
-		await expect( page.locator( 'input[name="wp_ban_options[reverse_proxy]"]' ) ).toBeChecked();
+		// The checkbox specifically. A Settings API checkbox is two inputs under
+		// one name -- the hidden "0" that makes an unticked box post at all,
+		// plus the box -- so the bare name selector matches both and dies of
+		// strict mode rather than of anything being wrong.
+		await expect(
+			page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' ),
+		).toBeChecked();
 
 		// And a visitor the migrated list names really is turned away. The
 		// trusted header is added here rather than migrated, because a 1.x row
@@ -208,7 +236,14 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 		const { context, page: visitor } = await asVisitor( browser, { ip: FAKE.banned } );
 
 		try {
-			await expectBanned( visitor, '/' );
+			// The migrated message, not expectBanned()'s default "You Are
+			// Banned". LEGACY carries a custom banned_message, :198 has just
+			// asserted it survived the fold-in, and the ban page duly serves
+			// it -- so the default text could never appear here. Naming it
+			// makes this the stronger assertion anyway: it proves the migrated
+			// message is what a banned visitor is actually served, which is the
+			// only thing that makes the migration of that row worth anything.
+			await expectBanned( visitor, '/', 403, "O'Brien says go away" );
 		} finally {
 			await context.close();
 		}
@@ -229,6 +264,12 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 		// where it sits is not a detail: until 2.0.0 every visitor to the front
 		// page paid for a list of every address ever turned away.
 		expect( autoloadOf( 'wp_ban_stats' ) ).toBe( 'no' );
+
+		// The Stats tab, because that is the tab the counters are drawn on.
+		// openSettings() above opened the Settings tab -- any admin load runs
+		// the migration, which is all it was there for -- and the counter total
+		// is not on it.
+		await openSettings( page, 'stats' );
 
 		await expect( page.locator( '#wpbody' ) ).toContainText( 'Total attempts turned away: 12' );
 	} );

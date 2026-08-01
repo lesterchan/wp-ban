@@ -691,8 +691,14 @@ test.describe( 'The self-ban guard', () => {
 		try {
 			setFixtureAnswer( 'protect_self', false );
 
-			await other.goto( SETTINGS_URL );
-			await expect( other.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
+			// openSettings(), which goes to the Settings *tab*. Going to
+			// SETTINGS_URL lands on Stats -- that tab is first and is the
+			// default -- and Stats carries no list fields, so the fillLists()
+			// below sat on fill( '#wp-ban-list-ips' ) until the 60s test
+			// timeout. The heading assertion did not catch it: "Ban Options" is
+			// the h1 of all three tabs. openSettings() also asserts which tab
+			// is active, which is the check that was missing.
+			await openSettings( other );
 
 			// This browser's own user agent, typed into its own ban list, with
 			// the guard filtered off.
