@@ -511,7 +511,7 @@ test.describe( 'The settings screen', () => {
 		await expect( row ).toHaveCount( 1 );
 		await row.getByRole( 'link', { name: 'Settings' } ).click();
 
-		await expect( page.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
+		await expect( page.getByRole( 'heading', { name: 'Ban Settings' } ) ).toBeVisible();
 	} );
 
 	test( 'the success notice is printed once, not twice', async ( { page } ) => {
@@ -571,7 +571,7 @@ test.describe( 'The settings screen', () => {
 			await expect( subscriber.locator( '#adminmenu' ) ).toContainText( 'WP-Ban' );
 
 			await subscriber.goto( SETTINGS_URL );
-			await expect( subscriber.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
+			await expect( subscriber.getByRole( 'heading', { name: 'Ban Settings' } ) ).toBeVisible();
 
 			// The forms themselves, not just the wrapper: render() returns early
 			// on a failed capability check, which would leave the heading
@@ -695,7 +695,7 @@ test.describe( 'The self-ban guard', () => {
 			// SETTINGS_URL lands on Stats -- that tab is first and is the
 			// default -- and Stats carries no list fields, so the fillLists()
 			// below sat on fill( '#wp-ban-list-ips' ) until the 60s test
-			// timeout. The heading assertion did not catch it: "Ban Options" is
+			// timeout. The heading assertion did not catch it: "Ban Settings" is
 			// the h1 of all three tabs. openSettings() also asserts which tab
 			// is active, which is the check that was missing.
 			await openSettings( other );

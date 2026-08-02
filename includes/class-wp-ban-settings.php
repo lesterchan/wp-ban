@@ -728,7 +728,7 @@ class WP_Ban_Settings {
 		$tab = self::current_tab();
 
 		echo '<div class="wrap">';
-		printf( '<h1>%s</h1>', esc_html__( 'Ban Options', 'wp-ban' ) );
+		printf( '<h1>%s</h1>', esc_html__( 'Ban Settings', 'wp-ban' ) );
 
 		/*
 		 * No settings_errors() call here on purpose, on any tab.

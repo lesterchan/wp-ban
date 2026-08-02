@@ -468,7 +468,7 @@ async function expectAllowed( page, url ) {
 async function openSettings( page, tab = 'settings' ) {
 	await page.goto( tabUrl( tab ) );
 
-	await expect( page.getByRole( 'heading', { name: 'Ban Options' } ) ).toBeVisible();
+	await expect( page.getByRole( 'heading', { name: 'Ban Settings' } ) ).toBeVisible();
 
 	// The tab strip is navigation, so the active tab is the one that says so --
 	// not merely the one whose fields happen to be on screen.
