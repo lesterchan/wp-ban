@@ -97,15 +97,105 @@ class WP_Ban_Migration_Test extends WP_Ban_TestCase {
 		$this->assertStringNotContainsString( '\\', WP_Ban_Options::message() );
 	}
 
-	public function test_the_reused_row_keeps_its_existing_value() {
+	/**
+	 * Migrate a 1.x install the way an update through the Plugins screen does,
+	 * with register_setting() already in force.
+	 *
+	 * WP_Ban_Settings::register() calls maybe_upgrade() before
+	 * register_setting(), so one call would fold the old rows in before either
+	 * of that function's filters existed -- and a migration proved only against
+	 * that ordering is proved against WP-CLI. Registering first and seeding
+	 * afterwards puts the fold-in on the far side of both: every
+	 * update_option() it makes then runs through the settings screen's
+	 * sanitiser, and get_option() answers with the shipped defaults for a row
+	 * that was never written. That is the harder half, and it costs two lines.
+	 *
+	 * @param array $banned_options The 1.x banned_options row to migrate.
+	 * @return void
+	 */
+	private function migrate_on_admin_init( $banned_options ) {
+		WP_Ban_Settings::register();
+
 		$this->seed_legacy();
+		update_option( 'banned_options', $banned_options );
 
-		WP_Ban_Options::maybe_upgrade();
+		WP_Ban_Settings::register();
 		WP_Ban_Options::flush_cache();
+	}
 
-		$options = WP_Ban_Options::get();
+	/**
+	 * The setting 2.0.0 retires, and the only one whose removal could cost a
+	 * site its bans.
+	 *
+	 * A 1.x site with the box ticked and no header named has to come out of the
+	 * upgrade naming one. Left to fall back it would resolve every visitor from
+	 * REMOTE_ADDR, which on a site behind a proxy is the proxy's own address --
+	 * so every visitor would look like the same machine and every IP ban would
+	 * match nobody, or match the entire audience.
+	 */
+	public function test_a_ticked_reverse_proxy_box_with_no_header_migrates_to_x_forwarded_for() {
+		$this->migrate_on_admin_init( array( 'reverse_proxy' => 1 ) );
 
-		$this->assertTrue( $options['reverse_proxy'], 'reverse_proxy was lost by the consolidation' );
+		$this->assertSame( 'HTTP_X_FORWARDED_FOR', WP_Ban_Options::get()['ip_header'] );
+
+		// Raw as well as through get(): with a default registered, a row that
+		// was never written is indistinguishable from one holding the defaults,
+		// and this value has to actually be in the database.
+		$stored = get_option( WP_Ban_Options::OPTION, false );
+
+		$this->assertIsArray( $stored, 'the migrated settings row was never written' );
+		$this->assertSame( 'HTTP_X_FORWARDED_FOR', $stored['ip_header'] );
+	}
+
+	/**
+	 * Present is not alive: the migrated header must be one the install reads.
+	 */
+	public function test_the_migrated_header_is_the_one_the_install_then_reads() {
+		$this->migrate_on_admin_init( array( 'reverse_proxy' => 1 ) );
+
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.44';
+
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address() );
+	}
+
+	/**
+	 * A header already named outranks the fallback, and is not overwritten.
+	 *
+	 * A 1.x row could not carry ip_header, but the row this reads is whatever
+	 * the site has under banned_options -- an install part way through an
+	 * earlier attempt at this upgrade, or one an owner edited. Guessing over a
+	 * header somebody chose is worse than not guessing at all: they knew which
+	 * one their stack sets, and the migration does not.
+	 */
+	public function test_a_header_already_named_survives_the_fallback() {
+		$this->migrate_on_admin_init(
+			array(
+				'reverse_proxy' => 1,
+				'ip_header'     => 'HTTP_CLIENT_IP',
+			)
+		);
+
+		$this->assertSame( 'HTTP_CLIENT_IP', WP_Ban_Options::get()['ip_header'] );
+	}
+
+	/**
+	 * An unticked box already meant what a blank field means, so it stays blank.
+	 */
+	public function test_an_unticked_reverse_proxy_box_names_no_header() {
+		$this->migrate_on_admin_init( array( 'reverse_proxy' => 0 ) );
+
+		$this->assertSame( '', WP_Ban_Options::get()['ip_header'] );
+	}
+
+	public function test_the_retired_setting_is_not_carried_into_the_new_row() {
+		$this->migrate_on_admin_init( array( 'reverse_proxy' => 1 ) );
+
+		$stored = get_option( WP_Ban_Options::OPTION, false );
+
+		$this->assertIsArray( $stored );
+		$this->assertArrayNotHasKey( 'reverse_proxy', $stored, 'the retired setting was folded in rather than dropped' );
+		$this->assertArrayNotHasKey( 'reverse_proxy', WP_Ban_Options::get() );
 	}
 
 	public function test_every_unprefixed_row_is_deleted() {
@@ -227,7 +317,7 @@ class WP_Ban_Migration_Test extends WP_Ban_TestCase {
 
 		// A row that has lost its list group entirely, as a partial write would
 		// leave it.
-		update_option( WP_Ban_Options::OPTION, array( 'reverse_proxy' => true ) );
+		update_option( WP_Ban_Options::OPTION, array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
 		WP_Ban_Options::flush_cache();
 
 		WP_Ban_Options::maybe_upgrade();

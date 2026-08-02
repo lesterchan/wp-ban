@@ -289,47 +289,59 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		$templates = $this->render( 'templates' );
 		$stats     = $this->render( 'stats' );
 
-		$proxy   = WP_Ban_Options::OPTION . '[reverse_proxy]';
 		$header  = WP_Ban_Options::OPTION . '[ip_header]';
 		$lists   = WP_Ban_Options::OPTION . '[lists]';
 		$message = WP_Ban_Options::OPTION . '[message]';
 
-		$this->assertStringContainsString( $proxy, $settings );
 		$this->assertStringContainsString( $header, $settings );
 		$this->assertStringContainsString( $lists, $settings );
 		$this->assertStringNotContainsString( $message, $settings, 'the message template leaked onto the Settings tab' );
 
 		$this->assertStringContainsString( $message, $templates );
-		$this->assertStringNotContainsString( $proxy, $templates, 'the proxy field leaked onto the Templates tab' );
+		$this->assertStringNotContainsString( $header, $templates, 'the proxy field leaked onto the Templates tab' );
 		$this->assertStringNotContainsString( $lists, $templates, 'the ban lists leaked onto the Templates tab' );
 
-		foreach ( array( $proxy, $header, $lists, $message ) as $field ) {
+		foreach ( array( $header, $lists, $message ) as $field ) {
 			$this->assertStringNotContainsString( $field, $stats, 'a settings field leaked onto the Stats tab' );
 		}
 	}
 
 	/**
-	 * The checkbox must post something even when it is unticked.
+	 * The removed control is removed from the screen, not merely from the docs.
 	 *
-	 * The sanitizer keeps whatever a submission did not mention, because three
-	 * tabs write one row. Without the hidden 0 in front of it this box could be
-	 * ticked and never unticked -- the failure §7.5 records an e2e suite
-	 * finding on another plugin, arriving here the moment the merge did.
+	 * 2.0.0 drops "This site is behind a reverse proxy.": a blank header field
+	 * already says "no proxy", so the box's only distinct meaning was "trust
+	 * whichever of the seven forwarding headers turns up" -- the thing the field
+	 * beneath it warns owners off. A control left rendering after the setting
+	 * behind it has gone is a box an owner ticks and a save that ignores them.
 	 */
-	public function test_the_reverse_proxy_checkbox_posts_a_zero_when_unticked() {
+	public function test_the_settings_tab_no_longer_offers_a_reverse_proxy_checkbox() {
 		$html = $this->render( 'settings' );
 
+		$this->assertStringNotContainsString( WP_Ban_Options::OPTION . '[reverse_proxy]', $html );
+		$this->assertStringNotContainsString( 'This site is behind a reverse proxy', $html );
+	}
+
+	/**
+	 * The field's placeholder names the header its own Example sentence names.
+	 *
+	 * All five proxy-aware plugins offer the same one. It used to read
+	 * HTTP_CF_CONNECTING_IP here, which suggested Cloudflare to a site that had
+	 * never heard of it while the line below suggested something else.
+	 */
+	public function test_the_header_field_and_its_example_name_the_same_header() {
+		$html = $this->render( 'settings' );
+
+		$this->assertStringContainsString( 'placeholder="HTTP_X_FORWARDED_FOR"', $html );
+		$this->assertStringContainsString( 'Example: <code>HTTP_X_FORWARDED_FOR</code>', $html );
+
+		// The sentence the other four plugins carry, byte for byte. It used to
+		// end "..., unless the checkbox above is ticked", and there is no
+		// checkbox above.
 		$this->assertStringContainsString(
-			'<input type="hidden" name="' . WP_Ban_Options::OPTION . '[reverse_proxy]" value="0" />',
+			'Leave this blank unless the site is behind a reverse proxy or CDN. Blank means the address the web server saw is used.',
 			$html
 		);
-
-		$this->set_options( array( 'reverse_proxy' => true ) );
-
-		update_option( WP_Ban_Options::OPTION, array( 'reverse_proxy' => '0' ) );
-		WP_Ban_Options::flush_cache();
-
-		$this->assertFalse( WP_Ban_Options::get()['reverse_proxy'], 'the box could not be unticked' );
 	}
 
 	/**
@@ -475,13 +487,12 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		update_option(
 			WP_Ban_Options::OPTION,
 			array(
-				'reverse_proxy' => '1',
-				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-				'lists'         => array(
+				'ip_header' => 'HTTP_CF_CONNECTING_IP',
+				'lists'     => array(
 					'ips'      => "192.168.77.10\n10.1.*.*",
 					'referers' => $referer,
 				),
-				'message'       => '<div id="wp-ban-container"><p>Nope</p></div>',
+				'message'   => '<div id="wp-ban-container"><p>Nope</p></div>',
 			)
 		);
 
@@ -489,7 +500,6 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$this->assertSame( array( $referer ), WP_Ban_Options::list_of( 'referers' ) );
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertTrue( WP_Ban_Options::get()['reverse_proxy'] );
 		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::get()['ip_header'] );
 	}
 
@@ -505,9 +515,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		update_option(
 			WP_Ban_Options::OPTION,
 			array(
-				'reverse_proxy' => $before['reverse_proxy'] ? '1' : '',
-				'ip_header'     => $before['ip_header'],
-				'lists'         => array(
+				'ip_header' => $before['ip_header'],
+				'lists'     => array(
 					'ips'         => WP_Ban_Options::list_to_lines( 'ips' ),
 					'ips_range'   => WP_Ban_Options::list_to_lines( 'ips_range' ),
 					'hosts'       => WP_Ban_Options::list_to_lines( 'hosts' ),
@@ -515,7 +524,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 					'user_agents' => WP_Ban_Options::list_to_lines( 'user_agents' ),
 					'exclude_ips' => WP_Ban_Options::list_to_lines( 'exclude_ips' ),
 				),
-				'message'       => WP_Ban_Options::message(),
+				'message'   => WP_Ban_Options::message(),
 			)
 		);
 
@@ -540,13 +549,12 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$this->set_options(
 			array(
-				'reverse_proxy' => true,
-				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-				'lists'         => array(
+				'ip_header' => 'HTTP_CF_CONNECTING_IP',
+				'lists'     => array(
 					'ips'         => array( '192.168.77.10' ),
 					'user_agents' => array( 'EvilBot*' ),
 				),
-				'message'       => $message,
+				'message'   => $message,
 			)
 		);
 
@@ -554,9 +562,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		update_option(
 			WP_Ban_Options::OPTION,
 			array(
-				'reverse_proxy' => '0',
-				'ip_header'     => 'HTTP_X_REAL_IP',
-				'lists'         => array(
+				'ip_header' => 'HTTP_X_REAL_IP',
+				'lists'     => array(
 					'ips'         => '203.0.113.5',
 					'ips_range'   => '',
 					'hosts'       => '',
@@ -571,7 +578,6 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$this->assertSame( $message, WP_Ban_Options::message(), 'saving the Settings tab destroyed the message template' );
 		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertFalse( WP_Ban_Options::get()['reverse_proxy'] );
 		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'] );
 
 		// And the Templates tab, which posts one field.

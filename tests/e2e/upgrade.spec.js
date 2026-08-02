@@ -182,7 +182,13 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 
 		const stored = getStoredOptions();
 
-		expect( stored.reverse_proxy ).toBe( true );
+		// The ticked box becomes a named header rather than nothing. Left to
+		// fall back, a 1.x site that was behind a proxy would resolve every
+		// visitor from REMOTE_ADDR -- the proxy's own address -- so its IP bans
+		// would match nobody, or the entire audience.
+		expect( stored.ip_header ).toBe( 'HTTP_X_FORWARDED_FOR' );
+		expect( stored.reverse_proxy ).toBeUndefined();
+
 		expect( stored.lists.ips ).toEqual( [ '203.0.113.7' ] );
 		expect( stored.lists.ips_range ).toEqual( [ '203.0.113.10-203.0.113.20' ] );
 		expect( stored.lists.hosts ).toEqual( [ '*.example.invalid' ] );
@@ -217,17 +223,23 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 		await expect( listField( page, 'referers' ) ).toHaveValue(
 			'https://spam.example/?a=1&b=2',
 		);
-		// The checkbox specifically. A Settings API checkbox is two inputs under
-		// one name -- the hidden "0" that makes an unticked box post at all,
-		// plus the box -- so the bare name selector matches both and dies of
-		// strict mode rather than of anything being wrong.
+		// The header field specifically, holding what the ticked box became. And
+		// no checkbox: 2.0.0 removed it, and a control still on the screen after
+		// the setting behind it has gone is one an owner ticks and a save
+		// ignores. The bare name matches the hidden "0" as well as the box, so
+		// counting it catches both halves of a control left half-deleted.
+		await expect( page.locator( '#wp-ban-ip-header' ) ).toHaveValue(
+			'HTTP_X_FORWARDED_FOR',
+		);
 		await expect(
-			page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' ),
-		).toBeChecked();
+			page.locator( 'input[name="wp_ban_options[reverse_proxy]"]' ),
+		).toHaveCount( 0 );
 
 		// And a visitor the migrated list names really is turned away. The
-		// trusted header is added here rather than migrated, because a 1.x row
-		// has no such setting -- everything else about the ban comes through the
+		// migrated header is swapped for the suite's own here, not because the
+		// migration did not set one, but because the Apache in front of PHP in
+		// the wp-env image consumes X-Forwarded-For itself -- see the note in
+		// blocking.spec.js. Everything else about the ban comes through the
 		// upgrade.
 		const stored = getStoredOptions();
 

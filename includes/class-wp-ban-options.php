@@ -125,9 +125,8 @@ class WP_Ban_Options {
 	 */
 	public static function defaults() {
 		return array(
-			'reverse_proxy' => false,
-			'ip_header'     => '',
-			'lists'         => array(
+			'ip_header' => '',
+			'lists'     => array(
 				'ips'         => array(),
 				'ips_range'   => array(),
 				'hosts'       => array(),
@@ -135,7 +134,7 @@ class WP_Ban_Options {
 				'user_agents' => array(),
 				'exclude_ips' => array(),
 			),
-			'message'       => self::default_message(),
+			'message'   => self::default_message(),
 		);
 	}
 
@@ -159,9 +158,8 @@ class WP_Ban_Options {
 		// by hand rather than merged.
 		$options = wp_parse_args( $stored, self::defaults() );
 
-		$options['reverse_proxy'] = ! empty( $options['reverse_proxy'] );
-		$options['ip_header']     = is_string( $options['ip_header'] ) ? $options['ip_header'] : '';
-		$options['message']       = is_string( $options['message'] ) ? $options['message'] : '';
+		$options['ip_header'] = is_string( $options['ip_header'] ) ? $options['ip_header'] : '';
+		$options['message']   = is_string( $options['message'] ) ? $options['message'] : '';
 
 		$lists = isset( $options['lists'] ) && is_array( $options['lists'] ) ? $options['lists'] : array();
 
@@ -283,16 +281,6 @@ class WP_Ban_Options {
 		}
 
 		$clean = self::get();
-
-		/*
-		 * The checkbox always says something, because field_reverse_proxy()
-		 * prints a hidden 0 in front of it -- an unticked box posts nothing at
-		 * all, and "nothing" now means "keep what is stored", which would make
-		 * the box impossible to untick.
-		 */
-		if ( isset( $input['reverse_proxy'] ) ) {
-			$clean['reverse_proxy'] = ! empty( $input['reverse_proxy'] );
-		}
 
 		if ( isset( $input['ip_header'] ) ) {
 			$header = sanitize_text_field( $input['ip_header'] );
@@ -631,8 +619,41 @@ class WP_Ban_Options {
 			$options['lists'] = self::defaults()['lists'];
 		}
 
-		// reverse_proxy was an int in the pre-2.0.0 row.
-		$options['reverse_proxy'] = ! empty( $options['reverse_proxy'] );
+		/*
+		 * reverse_proxy was an int in the pre-2.0.0 row, and 2.0.0 removes the
+		 * checkbox it drove: an empty ip_header already means "no proxy", so the
+		 * box's only distinct meaning was "trust whichever of the seven headers
+		 * in WP_Ban_IP::PROXY_HEADERS turns up" -- which is exactly what the
+		 * field's own warning tells owners not to do.
+		 *
+		 * Dropping it cannot be silent. A site with the box ticked and no header
+		 * named would fall back to REMOTE_ADDR, which on such a site is the
+		 * proxy's own address: every visitor would resolve to one address, so
+		 * every IP ban would match nobody or match the entire audience. So a
+		 * ticked box that named no header is migrated to one header instead.
+		 *
+		 * HTTP_X_FORWARDED_FOR is that header. It is the one essentially every
+		 * proxy and CDN sets -- Cloudflare sets it as well as its own
+		 * CF-Connecting-IP -- it is the one the field's Example sentence names,
+		 * and trusting one header is strictly narrower than walking seven.
+		 *
+		 * It is not a guess that is right everywhere: a site whose proxy sets
+		 * only an exotic header, HTTP_CLIENT_IP say, has to name that header
+		 * itself now. The Upgrade Notice says so in as many words. Naming the
+		 * wrong header is a ban that stops matching, which an owner can see;
+		 * walking all seven is a ban anyone can step around, which they cannot.
+		 */
+		$was_behind_a_proxy = ! empty( $options['reverse_proxy'] );
+
+		unset( $options['reverse_proxy'] );
+
+		$options['ip_header'] = is_string( $options['ip_header'] ) ? $options['ip_header'] : '';
+
+		// A header the owner named outranks the fallback, always. They knew
+		// which one their stack sets; this guess does not.
+		if ( $was_behind_a_proxy && '' === $options['ip_header'] ) {
+			$options['ip_header'] = 'HTTP_X_FORWARDED_FOR';
+		}
 
 		foreach ( self::LEGACY_LIST_OPTIONS as $legacy_option => $key ) {
 			$value = get_option( $legacy_option, null );

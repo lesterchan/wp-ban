@@ -73,11 +73,10 @@ The other four are `wp_ban_ipaddress` (the address a request is attributed to), 
 ### Every visitor shows the same IP address, or IP bans do not apply
 Your site is behind a reverse proxy, a load balancer or a CDN such as Cloudflare, so WordPress sees the proxy's address on every request rather than the visitor's.
 
-By default WP-Ban only trusts `REMOTE_ADDR`, because every other header carrying an IP address is set by the client — trusting them unconditionally means anyone can walk past an IP ban by sending a different value on each request. There are three ways to opt in, narrowest first:
+By default WP-Ban only trusts `REMOTE_ADDR`, because every other header carrying an IP address is set by the client — trusting them unconditionally means anyone can walk past an IP ban by sending a different value on each request. There are two ways to opt in, narrowest first:
 
-1. **Name the exact header** in the *Trusted header* field on the **Settings** tab, for example `HTTP_CF_CONNECTING_IP`. Only that header is trusted. This is the safest option and the one to use if you know your stack.
-2. **Tick *This site is behind a reverse proxy*** on the **Settings** tab, which trusts the usual set of forwarding headers.
-3. **Define the constant** in `wp-config.php`:
+1. **Name the exact header** in the *Header That Contains The IP* field on the **Settings** tab, for example `HTTP_X_FORWARDED_FOR`, or `HTTP_CF_CONNECTING_IP` on Cloudflare. Only that header is trusted, and this is the option to use. Ask your host or your CDN's documentation which header they set if you are not sure.
+2. **Define the constant** in `wp-config.php`, which trusts the usual set of forwarding headers rather than one you choose:
 
 ```php
 define( 'WP_BAN_TRUST_PROXY', true );
@@ -92,7 +91,7 @@ add_filter( 'wp_ban_trust_proxy', function ( $trust ) {
 } );
 ```
 
-Do not enable any of these if there is no proxy in front of WordPress: it makes every IP ban trivial to bypass.
+Do not enable either of these if there is no proxy in front of WordPress: it makes every IP ban trivial to bypass. Naming the one header your own proxy sets and overwrites is always safer than the constant, which trusts seven headers because it cannot know which one is yours.
 
 ### My monitoring or SEO tool reports the site returning 403
 That is deliberate as of 2.0.0. The ban page used to be served as `200 OK`, which told search engines and caches that the ban page was your site's real content. It is now `403 Forbidden`.
@@ -127,14 +126,15 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 ## Changelog
 ### 2.0.0
 * BREAKING: Requires WordPress 6.8 and PHP 8.2, up from 6.0 and 7.4.
-* BREAKING: Proxy headers are no longer trusted by default. If your site is behind Cloudflare, a load balancer or any reverse proxy, name the header in the new *Trusted header* field, tick the reverse proxy box, or define `WP_BAN_TRUST_PROXY`. See the FAQ.
+* BREAKING: Proxy headers are no longer trusted by default. If your site is behind Cloudflare, a load balancer or any reverse proxy, name the header your proxy sets in the new *Header That Contains The IP* field, or define `WP_BAN_TRUST_PROXY`. See the FAQ.
+* BREAKING: The *This site is behind a reverse proxy* checkbox is removed. It trusted whichever of seven forwarding headers happened to arrive; naming the one header your proxy sets is both safer and what the four sibling plugins offer. A site that had the box ticked and no header named is migrated to `HTTP_X_FORWARDED_FOR`.
 * BREAKING: The ban page is now served as `403 Forbidden` instead of `200 OK`. Filter `wp_ban_status_code` to restore the old behaviour. See the FAQ.
 * BREAKING: The pre-2.0.0 global functions (`banned()`, `ban_get_ip()`, `print_banned_message()`, `process_ban()`, `is_admin_ip()`, `preg_match_wildcard()` and friends) have been removed. They were unprefixed and declared unconditionally; any code calling them must be updated.
 * BREAKING: The option rows are renamed. `banned_options` is now `wp_ban_options`, `banned_stats` is now `wp_ban_stats`, and `ban_db_version` is replaced by `wp_ban_version`. The ten pre-2.0.0 rows are folded into those three automatically and then deleted.
 * NEW: Settings moved to the Settings API, under `Settings -> Ban`, split across three tabs: Stats, Settings and Templates. All three write one option row, and saving one leaves the other two untouched.
 * NEW: Ban stats are now a sortable, paginated list table with bulk delete. The old table rendered every recorded address on a single page.
 * NEW: IPv6 IP ranges are supported.
-* NEW: An optional trusted-header setting, plus the `WP_BAN_TRUST_PROXY` constant and `wp_ban_trust_proxy` filter.
+* NEW: A *Header That Contains The IP* setting naming the one header to trust, plus the `WP_BAN_TRUST_PROXY` constant and `wp_ban_trust_proxy` filter.
 * NEW: `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self` and `wp_ban_status_code` hooks.
 * NEW: Dropped jQuery; the admin script is vanilla JavaScript.
 * NEW: The ban check no longer runs for WP-CLI or cron.
@@ -145,7 +145,7 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 * FIXED: Network activation and multisite uninstall fatalled, because `wp_get_sites()` was removed in WordPress 5.1. Both now page through every site rather than stopping at the hundredth.
 * FIXED: Ban entries were stored HTML-escaped, so a referrer pattern containing `&` could never match a real Referer header, and re-saving compounded it. Existing entries are repaired by the upgrade.
 * FIXED: The banned message was stored slashed and unslashed on every read. The upgrade corrects the stored value.
-* FIXED: Bans stopped applying entirely when the reverse proxy box was ticked and no proxy header was present, or when the visitor's address was on a private network.
+* FIXED: Bans stopped applying entirely when proxy headers were trusted and none was present, or when the visitor's address was on a private network.
 * FIXED: The banned message preview was readable by any logged-in user, including subscribers. It now requires `manage_options` and a nonce.
 * FIXED: Self-ban protection only worked if your username was literally "admin". It now protects whoever is saving.
 * FIXED: The settings row was never removed on uninstall.
@@ -160,7 +160,9 @@ Requires WordPress 6.8 and PHP 8.2.
 
 **The screen is three tabs now.** `Settings -> Ban` used to be one page carrying the proxy options, six ban lists, the banned message and the stats table end to end. It opens on **Stats**, with the lists under **Settings** and the message under **Templates**. Nothing moved in the database — all three tabs write the same `wp_ban_options` row — so a bookmark or a screenshot pointing at the old page still lands on the screen, just on the first tab. Add `&tab=settings` or `&tab=templates` to go straight to one.
 
-**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site is behind a proxy, open `Settings -> Ban`, go to the **Settings** tab, and either name the exact header your proxy sets in the new *Trusted header* field or re-tick *This site is behind a reverse proxy*. Otherwise do nothing.
+**Proxy headers are no longer trusted unless you say so.** Until 2.0.0 the plugin read `HTTP_X_FORWARDED_FOR` and friends whenever the reverse proxy box was ticked, and those headers are set by the visitor — so on a site with no proxy in front of it, anyone could walk past an IP ban by sending a different value on each request. If your site is behind a proxy, open `Settings -> Ban`, go to the **Settings** tab, and name the exact header your proxy sets in the new *Header That Contains The IP* field. Otherwise do nothing.
+
+**The *This site is behind a reverse proxy* checkbox is gone, and if you had it ticked, read this one.** The box trusted whichever of seven forwarding headers turned up on a request, which is the insecure half of the two settings — a visitor can send any of the seven. The field beside it does the same job properly by naming the single header your own proxy sets and overwrites, so that is all there is now. **If you had the box ticked and had not named a header, the update names `HTTP_X_FORWARDED_FOR` for you.** That is the header essentially every proxy and CDN sets, Cloudflare included, so for almost every site it is simply correct and there is nothing to do. If your proxy sets only something more unusual — `HTTP_CLIENT_IP`, say — you must now type that name into the field yourself: open `Settings -> Ban`, go to the **Settings** tab, and check that *Your IP* at the top of that section shows your own address and not your proxy's. If it shows the same address for everybody, the header named in the field is not the one your stack sets. Your host or your CDN's documentation will tell you which it is. Nothing changes for a site that already named a header, or for one that never ticked the box.
 
 **Banned visitors get a 403, not a 200.** Uptime monitors and SEO tools that were treating the ban page as real content will start reporting 403 for banned addresses. Filter `wp_ban_status_code` to return 200 for the old behaviour.
 

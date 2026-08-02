@@ -29,7 +29,8 @@ class WP_Ban_Trust_Proxy_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR']    = '198.51.100.7';
 		$_SERVER['HTTP_CLIENT_IP'] = '203.0.113.1';
 
-		// No reverse_proxy setting: the constant alone is the opt-in.
+		// No header named: the constant alone is the opt-in, and since 2.0.0
+		// removed the checkbox it is the only one that walks PROXY_HEADERS.
 		$this->set_options( array() );
 
 		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );

@@ -10,6 +10,20 @@
  */
 class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
+	/**
+	 * Opt in to the usual seven forwarding headers.
+	 *
+	 * Since 2.0.0 removed the "This site is behind a reverse proxy." checkbox
+	 * this is the only opt-in that walks PROXY_HEADERS -- the other names one
+	 * header and trusts nothing else. WP_UnitTestCase backs the hook table up in
+	 * set_up() and restores it in tear_down(), so the filter comes off by itself.
+	 *
+	 * @return void
+	 */
+	private function trust_the_usual_headers() {
+		add_filter( 'wp_ban_trust_proxy', '__return_true' );
+	}
+
 	public function test_wildcards_match_the_whole_subject() {
 		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.100', '192.168.1.100' ) );
 		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.*', '192.168.1.55' ) );
@@ -142,20 +156,43 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		);
 	}
 
-	public function test_the_reverse_proxy_setting_honours_forwarding_headers() {
+	public function test_a_trusted_proxy_honours_the_forwarding_headers() {
 		$_SERVER['REMOTE_ADDR']    = '198.51.100.7';
 		$_SERVER['HTTP_CLIENT_IP'] = '203.0.113.1';
 
-		$this->set_options( array( 'reverse_proxy' => true ) );
+		$this->set_options( array() );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+	}
+
+	/**
+	 * A named header is the whole of the opt-in: nothing else is read.
+	 *
+	 * The checkbox 2.0.0 removes meant "trust whichever of the seven turns up",
+	 * so this is the case that used to be indistinguishable from it and is now
+	 * the ordinary one. A header the site's own proxy does not set stays
+	 * ignored, however plausible it looks.
+	 */
+	public function test_naming_a_header_trusts_that_header_and_no_other() {
+		$_SERVER['REMOTE_ADDR']    = '198.51.100.7';
+		$_SERVER['HTTP_CLIENT_IP'] = '203.0.113.1';
+
+		$this->set_options( array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
+
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.44';
+
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address() );
 	}
 
 	public function test_private_hops_in_a_forwarded_chain_are_stepped_over() {
 		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
 		$_SERVER['HTTP_X_FORWARDED_FOR'] = '10.0.0.1, 203.0.113.44';
 
-		$this->set_options( array( 'reverse_proxy' => true ) );
+		$this->set_options( array() );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '203.0.113.44', WP_Ban_IP::address() );
 	}
@@ -164,7 +201,8 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
 		$_SERVER['HTTP_X_FORWARDED_FOR'] = 'total garbage, not an ip';
 
-		$this->set_options( array( 'reverse_proxy' => true ) );
+		$this->set_options( array() );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
 	}
@@ -175,7 +213,8 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 	public function test_a_private_remote_addr_still_resolves_with_proxy_on() {
 		$_SERVER['REMOTE_ADDR'] = '192.168.5.5';
 
-		$this->set_options( array( 'reverse_proxy' => true ) );
+		$this->set_options( array() );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '192.168.5.5', WP_Ban_IP::address() );
 	}
@@ -185,12 +224,8 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$_SERVER['HTTP_CF_CONNECTING_IP'] = '203.0.113.77';
 		$_SERVER['HTTP_CLIENT_IP']        = '203.0.113.1';
 
-		$this->set_options(
-			array(
-				'reverse_proxy' => true,
-				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-			)
-		);
+		$this->set_options( array( 'ip_header' => 'HTTP_CF_CONNECTING_IP' ) );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '203.0.113.77', WP_Ban_IP::address() );
 	}
@@ -199,14 +234,28 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR']    = '198.51.100.7';
 		$_SERVER['HTTP_CLIENT_IP'] = '203.0.113.1';
 
-		$this->set_options(
-			array(
-				'reverse_proxy' => true,
-				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-			)
-		);
+		$this->set_options( array( 'ip_header' => 'HTTP_CF_CONNECTING_IP' ) );
+		$this->trust_the_usual_headers();
 
 		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+	}
+
+	/**
+	 * And with no opt-in at all, a forwarding header is simply not read.
+	 *
+	 * The half the removed checkbox made easy to get wrong: it was the only
+	 * control on the screen that could turn this on, and ticking it on a site
+	 * with no proxy made every IP ban bypassable by anybody who could set a
+	 * header -- which is everybody.
+	 */
+	public function test_a_forwarding_header_is_ignored_when_nothing_opted_in() {
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.1';
+		$_SERVER['HTTP_CLIENT_IP']       = '203.0.113.2';
+
+		$this->set_options( array() );
+
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
 	}
 
 	public function test_the_trust_proxy_filter_enables_the_headers() {

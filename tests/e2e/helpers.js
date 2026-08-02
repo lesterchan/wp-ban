@@ -182,7 +182,6 @@ function getStoredOptions() {
  */
 function ban( lists, byHeader = true ) {
 	setOptions( {
-		reverse_proxy: false,
 		ip_header: byHeader ? IP_HEADER : '',
 		lists: {
 			ips: [],

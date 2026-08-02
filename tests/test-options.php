@@ -15,7 +15,8 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertFalse( WP_Ban_Options::get()['reverse_proxy'] );
+		// Blank, which is what says "no proxy" now that the checkbox is gone.
+		$this->assertSame( '', WP_Ban_Options::get()['ip_header'] );
 		$this->assertStringContainsString( 'wp-ban-container', WP_Ban_Options::message() );
 	}
 
@@ -92,10 +93,9 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 	public function test_sanitizing_is_idempotent() {
 		$input = array(
-			'reverse_proxy' => '1',
-			'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-			'lists'         => array( 'referers' => 'http://*.spam.test/?a=1&b=2' ),
-			'message'       => '<div id="wp-ban-container"><p>Nope &amp; goodbye</p></div>',
+			'ip_header' => 'HTTP_CF_CONNECTING_IP',
+			'lists'     => array( 'referers' => 'http://*.spam.test/?a=1&b=2' ),
+			'message'   => '<div id="wp-ban-container"><p>Nope &amp; goodbye</p></div>',
 		);
 
 		$once  = WP_Ban_Options::sanitize( $input );
@@ -105,15 +105,15 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	}
 
 	/**
-	 * The checkbox posts a 0 of its own when unticked, so "absent" never has to
-	 * mean "off" -- which is what lets everything else absent mean "not this
-	 * tab's business".
+	 * The retired setting is not merely unread: it is not stored either.
+	 *
+	 * The sanitizer starts from what is stored, so a key it did not explicitly
+	 * drop would be carried forward by every save for the life of the install.
 	 */
-	public function test_an_unticked_checkbox_posts_a_zero_and_stores_false() {
-		$this->set_options( array( 'reverse_proxy' => true ) );
+	public function test_the_sanitizer_never_stores_a_reverse_proxy_key() {
+		$clean = WP_Ban_Options::sanitize( array( 'reverse_proxy' => '1' ) );
 
-		$this->assertFalse( WP_Ban_Options::sanitize( array( 'reverse_proxy' => '0' ) )['reverse_proxy'] );
-		$this->assertTrue( WP_Ban_Options::sanitize( array( 'reverse_proxy' => '1' ) )['reverse_proxy'] );
+		$this->assertArrayNotHasKey( 'reverse_proxy', $clean );
 	}
 
 	/**
@@ -126,16 +126,14 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	public function test_a_field_the_submission_omitted_keeps_its_stored_value() {
 		$this->set_options(
 			array(
-				'reverse_proxy' => true,
-				'ip_header'     => 'HTTP_CF_CONNECTING_IP',
-				'lists'         => array( 'ips' => array( '203.0.113.5' ) ),
-				'message'       => '<div id="wp-ban-container"><p>Mine</p></div>',
+				'ip_header' => 'HTTP_CF_CONNECTING_IP',
+				'lists'     => array( 'ips' => array( '203.0.113.5' ) ),
+				'message'   => '<div id="wp-ban-container"><p>Mine</p></div>',
 			)
 		);
 
 		$clean = WP_Ban_Options::sanitize( array( 'message' => '<div id="wp-ban-container"><p>Yours</p></div>' ) );
 
-		$this->assertTrue( $clean['reverse_proxy'] );
 		$this->assertSame( 'HTTP_CF_CONNECTING_IP', $clean['ip_header'] );
 		$this->assertSame( array( '203.0.113.5' ), $clean['lists']['ips'] );
 		$this->assertStringContainsString( 'Yours', $clean['message'] );

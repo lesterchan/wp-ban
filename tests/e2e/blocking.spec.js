@@ -399,8 +399,13 @@ test.describe( 'A banned visitor', () => {
 	test( 'a proxy header is ignored until the site opts in, and then the client hop is used', async ( {
 		browser,
 	} ) => {
-		// No named header this time: this is the other opt-in, the reverse proxy
-		// checkbox, and the headers it then trusts are the well-known ones.
+		// No named header this time: this is the other opt-in, the
+		// WP_BAN_TRUST_PROXY constant and its filter, and the headers those
+		// trust are the well-known seven rather than one the owner chose. Since
+		// 2.0.0 removed the "This site is behind a reverse proxy." checkbox it
+		// is the only way left to reach this branch, which is the point of
+		// removing it: it is now a decision taken in wp-config.php, not a tick
+		// box on a settings screen.
 		ban( { ips: [ '198.51.100.9' ] }, false );
 
 		// CF-Connecting-IP rather than X-Forwarded-For, and the reason is worth

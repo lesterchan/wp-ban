@@ -35,10 +35,11 @@ class WP_Ban_IP {
 	 * client, so honouring them unconditionally lets anyone walk past a ban by
 	 * sending a different value on each request.
 	 *
-	 * Sites genuinely behind a proxy opt in three ways, narrowest first: by
-	 * naming the exact header on the settings screen, by ticking the reverse
-	 * proxy box, or by defining WP_BAN_TRUST_PROXY / returning true from the
-	 * wp_ban_trust_proxy filter.
+	 * Sites genuinely behind a proxy opt in two ways, narrowest first: by naming
+	 * the exact header on the settings screen, or by defining WP_BAN_TRUST_PROXY
+	 * / returning true from the wp_ban_trust_proxy filter. Naming the header is
+	 * the one to reach for; the constant is the escape hatch, and it trusts the
+	 * whole of PROXY_HEADERS because it cannot know which one to prefer.
 	 *
 	 * @return string
 	 */
@@ -75,7 +76,7 @@ class WP_Ban_IP {
 			defined( 'WP_BAN_TRUST_PROXY' ) && WP_BAN_TRUST_PROXY
 		);
 
-		if ( ! empty( $options['reverse_proxy'] ) || $trust_proxy ) {
+		if ( $trust_proxy ) {
 			foreach ( self::PROXY_HEADERS as $name ) {
 				if ( empty( $_SERVER[ $name ] ) ) {
 					continue;

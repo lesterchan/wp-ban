@@ -124,10 +124,23 @@ test.describe( 'The settings screen', () => {
 			await expect( listField( page, key ) ).toHaveValue( '' );
 		}
 
+		// Blank, which is the whole of "no proxy" now. 2.0.0 removed the "This
+		// site is behind a reverse proxy." checkbox that used to sit above it:
+		// blank already said what the unticked box said, and the ticked box only
+		// ever meant "trust whichever of the seven forwarding headers turns up",
+		// which is what this field's own warning tells owners not to do.
 		await expect( page.locator( '#wp-ban-ip-header' ) ).toHaveValue( '' );
+		await expect( page.locator( '#wp-ban-ip-header' ) ).toHaveAttribute(
+			'placeholder',
+			'HTTP_X_FORWARDED_FOR',
+		);
+
+		// Neither the box nor the hidden "0" that used to travel with it. A
+		// control left rendering after its setting has gone is one an owner
+		// ticks and a save silently ignores.
 		await expect(
-			page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' ),
-		).not.toBeChecked();
+			page.locator( 'input[name="wp_ban_options[reverse_proxy]"]' ),
+		).toHaveCount( 0 );
 
 		// The screen tells the owner who it thinks they are, which is the whole
 		// basis of the self-ban guard below.
@@ -343,34 +356,29 @@ test.describe( 'The settings screen', () => {
 		expect( getStoredOptions().ip_header ).toBe( '' );
 	} );
 
-	test( 'the reverse proxy box saves, and can be unticked again', async ( { page } ) => {
+	test( 'a header can be named and then cleared again', async ( { page } ) => {
 		await openSettings( page );
 
-		// By type as well as by name: a hidden input shares the checkbox's name,
-		// which is what makes unticking it say anything at all.
-		const box = page.locator( 'input[type="checkbox"][name="wp_ban_options[reverse_proxy]"]' );
-
-		await expect(
-			page.locator( 'input[type="hidden"][name="wp_ban_options[reverse_proxy]"]' ),
-		).toHaveValue( '0' );
-
-		await box.check();
+		await page.locator( '#wp-ban-ip-header' ).fill( 'HTTP_X_FORWARDED_FOR' );
 		await saveSettings( page );
 
-		expect( getStoredOptions().reverse_proxy ).toBe( true );
+		expect( getStoredOptions().ip_header ).toBe( 'HTTP_X_FORWARDED_FOR' );
 
-		// A checkbox that saves when ticked and cannot be unticked again is a
-		// bug this collection has shipped before: an unchecked box posts nothing
-		// at all, so a sanitizer that only reads the keys it was sent keeps the
-		// old value forever. This screen's sanitizer does exactly that -- it
-		// has to, because three tabs write one row -- so the hidden 0 above is
-		// what keeps the box switchable.
+		// The half that used to belong to the checkbox, and the reason it needed
+		// a hidden "0" in front of it: this screen's sanitizer keeps whatever a
+		// submission did not mention, because three tabs write one row. A text
+		// field posts its emptiness, so clearing it says something and the site
+		// really can go back to trusting nothing. Nothing left on this screen
+		// can be set and then not unset.
 		await openSettings( page );
-		await expect( box ).toBeChecked();
-		await box.uncheck();
+		await expect( page.locator( '#wp-ban-ip-header' ) ).toHaveValue(
+			'HTTP_X_FORWARDED_FOR',
+		);
+		await page.locator( '#wp-ban-ip-header' ).fill( '' );
 		await saveSettings( page );
 
-		expect( getStoredOptions().reverse_proxy ).toBe( false );
+		expect( getStoredOptions().ip_header ).toBe( '' );
+		expect( getStoredOptions().reverse_proxy ).toBeUndefined();
 	} );
 
 	test( 'the banned message saves, and an emptied one falls back to the shipped default', async ( {

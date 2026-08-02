@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * One page, three tabs. Stats is the counters -- a list table with its own form
  * and its own nonce, and the tab the screen opens on, because reading the
- * counters is what somebody comes here to do. Settings is the proxy options and
+ * counters is what somebody comes here to do. Settings is the trusted header and
  * the six ban lists. Templates is the banned message, which is a whole HTML
  * document and buried everything above it when it sat inline.
  *
@@ -279,14 +279,6 @@ class WP_Ban_Settings {
 		);
 
 		add_settings_field(
-			'wp_ban_reverse_proxy',
-			__( 'Reverse proxy', 'wp-ban' ),
-			array( __CLASS__, 'field_reverse_proxy' ),
-			$settings,
-			self::SECTION_PROXY
-		);
-
-		add_settings_field(
 			'wp_ban_ip_header',
 			__( 'Header That Contains The IP', 'wp-ban' ),
 			array( __CLASS__, 'field_ip_header' ),
@@ -416,66 +408,32 @@ class WP_Ban_Settings {
 	}
 
 	/**
-	 * The reverse proxy checkbox.
-	 *
-	 * @return void
-	 */
-	public static function field_reverse_proxy() {
-		$options = WP_Ban_Options::get();
-
-		/*
-		 * A hidden 0 sharing the checkbox's name.
-		 *
-		 * An unticked checkbox posts nothing at all, and the sanitizer keeps
-		 * whatever a submission did not mention -- deliberately, because three
-		 * tabs write this one option row and none of them may blank another's
-		 * fields. Together those would mean this box could be ticked and never
-		 * unticked. PHP keeps the last of a repeated name, so ticked posts 1
-		 * and unticked posts 0, and the control always says something.
-		 */
-		printf(
-			'<input type="hidden" name="%s[reverse_proxy]" value="0" />',
-			esc_attr( WP_Ban_Options::OPTION )
-		);
-
-		printf(
-			'<label><input type="checkbox" name="%s[reverse_proxy]" value="1"%s /> %s</label>',
-			esc_attr( WP_Ban_Options::OPTION ),
-			checked( ! empty( $options['reverse_proxy'] ), true, false ),
-			esc_html__( 'This site is behind a reverse proxy.', 'wp-ban' )
-		);
-
-		printf(
-			'<p class="description">%s</p>',
-			esc_html__( 'Leave this unchecked if you are not sure. Ticking it when there is no proxy in front of WordPress makes every IP ban trivial to bypass, because the headers it then trusts are set by the visitor.', 'wp-ban' )
-		);
-
-		if ( defined( 'WP_BAN_TRUST_PROXY' ) && WP_BAN_TRUST_PROXY ) {
-			printf(
-				'<p class="description"><strong>%s</strong></p>',
-				esc_html__( 'The WP_BAN_TRUST_PROXY constant is defined on this site, so proxy headers are trusted regardless of this box.', 'wp-ban' )
-			);
-		}
-	}
-
-	/**
 	 * The named-header field.
+	 *
+	 * The only control in this section as of 2.0.0. There used to be a "This
+	 * site is behind a reverse proxy." checkbox above it, and no other plugin in
+	 * the collection had one: an empty field already says "no proxy", so the box
+	 * only ever meant "trust whichever of the seven headers turns up", which is
+	 * what the warning at the bottom of this very field tells owners not to do.
 	 *
 	 * @return void
 	 */
 	public static function field_ip_header() {
 		$options = WP_Ban_Options::get();
 
+		// The placeholder names the same header as the Example sentence below,
+		// and the same one all five proxy-aware plugins now offer.
 		printf(
-			'<input type="text" class="regular-text code" id="wp-ban-ip-header" name="%s[ip_header]" value="%s" placeholder="HTTP_CF_CONNECTING_IP" />',
+			'<input type="text" class="regular-text code" id="wp-ban-ip-header" name="%s[ip_header]" value="%s" placeholder="HTTP_X_FORWARDED_FOR" />',
 			esc_attr( WP_Ban_Options::OPTION ),
 			esc_attr( $options['ip_header'] )
 		);
 
-		// Worded exactly as wp-polls and wp-postratings word it, with one extra
-		// sentence for the checkbox above, which no other plugin has.
+		// Worded exactly as wp-polls, wp-postratings, wp-email and wp-useronline
+		// word it. The plural in the second sentence is wp-ban's own and correct:
+		// its constant and filter really do walk seven headers.
 		echo '<p class="description">';
-		esc_html_e( 'Leave this blank unless the site is behind a reverse proxy or CDN. Blank means the address the web server saw is used, unless the checkbox above is ticked.', 'wp-ban' );
+		esc_html_e( 'Leave this blank unless the site is behind a reverse proxy or CDN. Blank means the address the web server saw is used.', 'wp-ban' );
 		echo '<br />';
 		printf(
 			/* translators: 1: an example header name, 2: the WP_BAN_TRUST_PROXY constant, 3: the wp_ban_trust_proxy filter, all in code spans. */
@@ -490,6 +448,20 @@ class WP_Ban_Settings {
 			esc_html__( 'Only name a header your proxy sets and overwrites. A visitor can send any header they like, so trusting one your stack does not control lets anyone walk past a ban.', 'wp-ban' )
 		);
 		echo '</p>';
+
+		/*
+		 * The constant used to be reported under the checkbox. It still has to be
+		 * reported somewhere: without this an owner who left the field blank has
+		 * no way to tell from the screen that the site is trusting seven headers
+		 * anyway, on the say-so of a line in wp-config.php they may not have
+		 * written.
+		 */
+		if ( defined( 'WP_BAN_TRUST_PROXY' ) && WP_BAN_TRUST_PROXY ) {
+			printf(
+				'<p class="description"><strong>%s</strong></p>',
+				esc_html__( 'The WP_BAN_TRUST_PROXY constant is defined on this site, so the usual proxy headers are trusted even when this field is empty.', 'wp-ban' )
+			);
+		}
 	}
 
 	/**
