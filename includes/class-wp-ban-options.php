@@ -573,7 +573,7 @@ class WP_Ban_Options {
 			 * post and quietly destructive for an unattended upgrade running
 			 * on some administrator's first admin_init after an update.
 			 */
-			update_option( self::OPTION, self::get() );
+			self::write( self::get() );
 		}
 
 		// Both markers in one write, so an upgrade that dies half way never
@@ -588,6 +588,45 @@ class WP_Ban_Options {
 		);
 
 		self::flush_cache();
+	}
+
+	/**
+	 * Write the settings row from inside an upgrade.
+	 *
+	 * `update_option()` declines to write a value equal to the one
+	 * `get_option()` would return, and `register_setting()` is passed a
+	 * `default`, which installs a `default_option_wp_ban_options` filter
+	 * answering with the shipped defaults for a row that does not exist. So on
+	 * an admin request -- the path every real update takes, because activation
+	 * hooks do not fire on an update -- a migration whose result happens to
+	 * equal the defaults writes nothing at all, while the legacy rows it read
+	 * have already been deleted a few lines further down.
+	 *
+	 * Passing an explicit default to `get_option()` defeats the registered one,
+	 * because `filter_default_option()` returns early when a default was passed.
+	 * That is what lets an absent row be told from a defaulted one and added
+	 * outright. `add_option()` runs the sanitize callback exactly as
+	 * `update_option()` does, so nothing else about the write changes.
+	 *
+	 * Harmless in wp-ban as it stands, because `get()` treats a missing row and
+	 * a defaults row identically, so nothing is lost either way. It stops being
+	 * harmless the moment this plugin gains a setting whose *absence* means
+	 * something different from its default -- and at that point the failure is
+	 * silent, browser-only, and the legacy rows are already gone. §7.6.1 has the
+	 * three sibling plugins this shape has already bitten;
+	 * WP_Print_Options::write() is the reference.
+	 *
+	 * @param array $options The settings to store.
+	 * @return void
+	 */
+	private static function write( array $options ) {
+		if ( false === get_option( self::OPTION, false ) ) {
+			add_option( self::OPTION, $options );
+
+			return;
+		}
+
+		update_option( self::OPTION, $options );
 	}
 
 	/**
@@ -678,7 +717,7 @@ class WP_Ban_Options {
 			$options['message'] = '' === trim( $message ) ? self::default_message() : $message;
 		}
 
-		update_option( self::OPTION, $options );
+		self::write( $options );
 
 		foreach ( array_keys( self::LEGACY_LIST_OPTIONS ) as $legacy_option ) {
 			delete_option( $legacy_option );
