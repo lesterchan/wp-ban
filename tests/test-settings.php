@@ -16,7 +16,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function set_up() {
 		parent::set_up();
 
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		wp_set_current_user( $this->create_admin() );
 
 		if ( ! function_exists( 'get_current_screen' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/screen.php';

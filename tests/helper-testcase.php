@@ -11,6 +11,27 @@
 abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 
 	/**
+	 * Creates a user who may actually reach the plugin's screens.
+	 *
+	 * The settings screen takes `manage_options`, which core's map_meta_cap()
+	 * does not touch under multisite, so no grant_super_admin() here: a site
+	 * administrator holds it on a network exactly as on a single site. That is
+	 * the right fixture for this plugin in particular — deciding who may not
+	 * read *this* site is a site decision, which is why the capability is
+	 * `manage_options` rather than something network-level.
+	 *
+	 * Every administrator the suite creates goes through this, so the network
+	 * question is answered in one place rather than at each call site. Tests
+	 * that assert the *unprivileged* path set their own subscriber or editor
+	 * explicitly and must not be routed through here.
+	 *
+	 * @return int The new user's ID.
+	 */
+	protected function create_admin() {
+		return self::factory()->user->create( array( 'role' => 'administrator' ) );
+	}
+
+	/**
 	 * Set up.
 	 */
 	public function set_up() {

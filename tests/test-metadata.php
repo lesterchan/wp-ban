@@ -138,14 +138,16 @@ class WP_Ban_Metadata_Test extends Plugin_Metadata_TestCase {
 	 * It is enqueued only on its own screen, so the submenu page has to be
 	 * registered first - and that only happens for a user who may reach it.
 	 *
+	 * A plain administrator is that user on a network too. This used to call
+	 * grant_super_admin() as well, which was the one grant in the collection
+	 * §7.2.2 could not account for: the screen takes `manage_options`, core's
+	 * map_meta_cap() leaves that alone under multisite, and granting made the
+	 * fixture a stronger user than any operator this plugin has.
+	 *
 	 * @return void
 	 */
 	protected function register_plugin_assets() {
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-
-		if ( is_multisite() ) {
-			grant_super_admin( get_current_user_id() );
-		}
+		wp_set_current_user( $this->create_admin() );
 
 		WP_Ban_Settings::add_page();
 		WP_Ban_Settings::enqueue( 'settings_page_' . WP_Ban_Settings::PAGE );
