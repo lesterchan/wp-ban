@@ -36,7 +36,7 @@ class WP_Ban_Stats_Test extends WP_Ban_TestCase {
 		WP_Ban_Stats::record( '' );
 
 		$this->assertSame( 1, WP_Ban_Stats::total() );
-		$this->assertArrayNotHasKey( '', WP_Ban_Stats::get()['users'] );
+		$this->assertArrayNotHasKey( '', WP_Ban_Stats::get()['users'], 'An empty address counts towards the total but is never keyed as a user.' );
 	}
 
 	public function test_forgetting_removes_only_the_named_addresses() {

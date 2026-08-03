@@ -25,7 +25,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertNotEmpty( WP_Ban_Options::message() );
+		$this->assertNotEmpty( WP_Ban_Options::message(), 'A corrupt row falls back to the shipped defaults rather than to nothing.' );
 	}
 
 	public function test_a_partially_shaped_row_is_normalised() {
@@ -113,7 +113,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	public function test_the_sanitizer_never_stores_a_reverse_proxy_key() {
 		$clean = WP_Ban_Options::sanitize( array( 'reverse_proxy' => '1' ) );
 
-		$this->assertArrayNotHasKey( 'reverse_proxy', $clean );
+		$this->assertArrayNotHasKey( 'reverse_proxy', $clean, 'The sanitiser never stores a reverse_proxy key, whatever was posted.' );
 	}
 
 	/**

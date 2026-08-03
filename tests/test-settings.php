@@ -392,7 +392,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		$table->prepare_items();
 
 		// The pre-2.0.0 screen rendered every recorded address on one page.
-		$this->assertCount( 20, $table->items );
+		$this->assertCount( 20, $table->items, 'The stats table shows one page of twenty rather than every row.' );
 	}
 
 	public function test_the_stats_table_sorts_by_attempts_by_default() {
@@ -626,8 +626,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	}
 
 	public function test_the_preview_endpoint_is_registered_without_a_public_twin() {
-		$this->assertNotFalse( has_action( 'wp_ajax_wp_ban_preview', array( 'WP_Ban_Settings', 'ajax_preview' ) ) );
-		$this->assertFalse( has_action( 'wp_ajax_nopriv_wp_ban_preview' ) );
+		$this->assertNotFalse( has_action( 'wp_ajax_wp_ban_preview', array( 'WP_Ban_Settings', 'ajax_preview' ) ), 'The preview endpoint is registered for logged-in callers.' );
+		$this->assertFalse( has_action( 'wp_ajax_nopriv_wp_ban_preview' ), 'The preview endpoint has no nopriv twin, so a logged out caller cannot reach it.' );
 	}
 
 	/**
@@ -702,7 +702,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			)
 		);
 
-		$this->assertNotEmpty( get_settings_errors( WP_Ban_Options::OPTION ) );
+		$this->assertNotEmpty( get_settings_errors( WP_Ban_Options::OPTION ), 'The tab registered its validation notice, or the count below proves nothing.' );
 
 		foreach ( array_keys( WP_Ban_Settings::tabs() ) as $tab ) {
 			$_GET['tab'] = $tab;

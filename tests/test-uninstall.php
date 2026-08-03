@@ -59,17 +59,18 @@ class WP_Ban_Uninstall_Test extends WP_Ban_TestCase {
 
 		// WP_Site_Query defaults 'number' to 100, so a bare get_sites() leaves
 		// the options behind on every site past the hundredth.
-		$this->assertMatchesRegularExpression( "/'number'\s*=>\s*0/", $source );
+		$this->assertMatchesRegularExpression( "/'number'\s*=>\s*0/", $source, 'uninstall.php lifts the site query cap, or a network past the default is half-uninstalled.' );
 
 		// The loop only needs the ID; hydrating WP_Site objects for a large
 		// network is wasted work.
-		$this->assertMatchesRegularExpression( "/'fields'\s*=>\s*'ids'/", $source );
+		$this->assertMatchesRegularExpression( "/'fields'\s*=>\s*'ids'/", $source, 'uninstall.php asks for ids only, which is what makes the unlimited query affordable.' );
 
 		// switch_to_blog() pushes onto a stack, so restoring once after the
 		// loop leaves it unwound by exactly one.
 		$this->assertMatchesRegularExpression(
 			'/switch_to_blog\(.*?\).*?restore_current_blog\(\s*\);\s*\}/s',
-			$source
+			$source,
+			'The restore sits inside the loop; once after it leaves the stack unwound by one.'
 		);
 	}
 
@@ -125,7 +126,7 @@ class WP_Ban_Uninstall_Test extends WP_Ban_TestCase {
 			}
 		}
 
-		$this->assertNotEmpty( $files );
+		$this->assertNotEmpty( $files, 'The provider found no PHP files, so every test it drives would pass vacuously.' );
 
 		return $files;
 	}

@@ -83,7 +83,8 @@ class WP_Ban_Migration_Test extends WP_Ban_TestCase {
 			WP_Ban_IP::matches_any(
 				WP_Ban_Options::list_of( 'referers' ),
 				'http://bad.spam.test/path?a=1&b=2'
-			)
+			),
+			'The migrated referrer pattern matches the header a real request would send.'
 		);
 	}
 
@@ -193,9 +194,9 @@ class WP_Ban_Migration_Test extends WP_Ban_TestCase {
 
 		$stored = get_option( WP_Ban_Options::OPTION, false );
 
-		$this->assertIsArray( $stored );
+		$this->assertIsArray( $stored, 'The migration writes an array row rather than leaving the option absent.' );
 		$this->assertArrayNotHasKey( 'reverse_proxy', $stored, 'the retired setting was folded in rather than dropped' );
-		$this->assertArrayNotHasKey( 'reverse_proxy', WP_Ban_Options::get() );
+		$this->assertArrayNotHasKey( 'reverse_proxy', WP_Ban_Options::get(), 'The retired reverse_proxy key is not carried into the new row.' );
 	}
 
 	public function test_every_unprefixed_row_is_deleted() {
@@ -337,7 +338,7 @@ class WP_Ban_Migration_Test extends WP_Ban_TestCase {
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertNotEmpty( WP_Ban_Options::message() );
+		$this->assertNotEmpty( WP_Ban_Options::message(), 'A fresh install still gets the default message, with no legacy row to read.' );
 		$this->assertNotFalse( get_option( WP_Ban_Options::OPTION, false ), 'a fresh install must still get its settings row' );
 		$this->assertSame( WP_BAN_DB_VERSION, WP_Ban_Options::markers()['db'] );
 	}

@@ -158,7 +158,7 @@ class WP_Ban_Metadata_Test extends Plugin_Metadata_TestCase {
 		preg_match( '/^Tags:\s*(.+?)\s*$/m', $this->readme(), $matches );
 
 		$this->assertNotEmpty( $matches, 'The readme must carry a Tags line.' );
-		$this->assertLessThanOrEqual( 5, count( explode( ',', $matches[1] ) ) );
+		$this->assertLessThanOrEqual( 5, count( explode( ',', $matches[1] ) ), 'wordpress.org reads at most five tags, so a sixth is silently dropped.' );
 	}
 
 	/**

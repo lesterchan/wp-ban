@@ -25,35 +25,35 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 	}
 
 	public function test_wildcards_match_the_whole_subject() {
-		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.100', '192.168.1.100' ) );
-		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.*', '192.168.1.55' ) );
-		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.*.*', '192.168.9.55' ) );
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( '192.168.1.*', '10.0.0.1' ) );
+		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.100', '192.168.1.100' ), 'An exact address matches itself.' );
+		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.1.*', '192.168.1.55' ), 'A trailing wildcard matches any last octet.' );
+		$this->assertTrue( WP_Ban_IP::matches_wildcard( '192.168.*.*', '192.168.9.55' ), 'Two wildcards match the last two octets.' );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( '192.168.1.*', '10.0.0.1' ), 'A wildcard pattern does not reach into another subnet.' );
 	}
 
 	public function test_patterns_are_anchored_so_a_substring_does_not_match() {
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( 'EvilBot', 'NotEvilBotAtAll' ) );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( 'EvilBot', 'NotEvilBotAtAll' ), 'The pattern is anchored, so a substring is not a match.' );
 	}
 
 	public function test_regex_metacharacters_in_a_pattern_are_literal() {
 		// A dot must not behave as "any character", and a + must not repeat.
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( '1.2.3.4', '1X2X3X4' ) );
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( 'a+b', 'aaab' ) );
-		$this->assertTrue( WP_Ban_IP::matches_wildcard( 'a+b', 'a+b' ) );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( '1.2.3.4', '1X2X3X4' ), 'A dot in a pattern is a literal dot, not any character.' );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( 'a+b', 'aaab' ), 'A plus in a pattern is a literal plus, not a repeat.' );
+		$this->assertTrue( WP_Ban_IP::matches_wildcard( 'a+b', 'a+b' ), 'A literal a+b matches a+b and nothing else.' );
 	}
 
 	public function test_empty_pattern_or_subject_never_matches() {
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( '', 'anything' ) );
-		$this->assertFalse( WP_Ban_IP::matches_wildcard( '*', '' ) );
-		$this->assertFalse( WP_Ban_IP::matches_any( array( '*' ), '' ) );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( '', 'anything' ), 'An empty pattern never matches.' );
+		$this->assertFalse( WP_Ban_IP::matches_wildcard( '*', '' ), 'A wildcard never matches an empty subject.' );
+		$this->assertFalse( WP_Ban_IP::matches_any( array( '*' ), '' ), 'matches_any never matches an empty subject either.' );
 	}
 
 	public function test_ranges_are_inclusive() {
-		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.15', '203.0.113.10', '203.0.113.20' ) );
-		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.10', '203.0.113.10', '203.0.113.20' ) );
-		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.20', '203.0.113.10', '203.0.113.20' ) );
-		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.9', '203.0.113.10', '203.0.113.20' ) );
-		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.21', '203.0.113.10', '203.0.113.20' ) );
+		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.15', '203.0.113.10', '203.0.113.20' ), 'An address inside the bounds is in the range.' );
+		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.10', '203.0.113.10', '203.0.113.20' ), 'The lower bound is inside the range.' );
+		$this->assertTrue( WP_Ban_IP::in_range( '203.0.113.20', '203.0.113.10', '203.0.113.20' ), 'The upper bound is inside the range.' );
+		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.9', '203.0.113.10', '203.0.113.20' ), 'One below the lower bound is outside the range.' );
+		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.21', '203.0.113.10', '203.0.113.20' ), 'One above the upper bound is outside the range.' );
 	}
 
 	/**
@@ -89,25 +89,25 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 	}
 
 	public function test_ipv6_ranges_work() {
-		$this->assertTrue( WP_Ban_IP::in_range( '2001:db8::20', '2001:db8::10', '2001:db8::ff' ) );
-		$this->assertFalse( WP_Ban_IP::in_range( '2001:db8::1000', '2001:db8::10', '2001:db8::ff' ) );
+		$this->assertTrue( WP_Ban_IP::in_range( '2001:db8::20', '2001:db8::10', '2001:db8::ff' ), 'An IPv6 address inside the bounds is in the range.' );
+		$this->assertFalse( WP_Ban_IP::in_range( '2001:db8::1000', '2001:db8::10', '2001:db8::ff' ), 'An IPv6 address past the upper bound is outside the range.' );
 	}
 
 	public function test_a_range_cannot_mix_address_families() {
-		$this->assertFalse( WP_Ban_IP::parse_range( '203.0.113.1-2001:db8::1' ) );
-		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.15', '2001:db8::10', '2001:db8::ff' ) );
-		$this->assertFalse( WP_Ban_IP::in_range( '2001:db8::15', '203.0.113.1', '203.0.113.20' ) );
+		$this->assertFalse( WP_Ban_IP::parse_range( '203.0.113.1-2001:db8::1' ), 'A range cannot mix IPv4 with IPv6.' );
+		$this->assertFalse( WP_Ban_IP::in_range( '203.0.113.15', '2001:db8::10', '2001:db8::ff' ), 'An IPv4 address is never inside an IPv6 range.' );
+		$this->assertFalse( WP_Ban_IP::in_range( '2001:db8::15', '203.0.113.1', '203.0.113.20' ), 'An IPv6 address is never inside an IPv4 range.' );
 	}
 
 	public function test_ranges_compare_correctly_above_127() {
 		// ip2long() goes negative here on 32-bit builds; packed comparison does not.
-		$this->assertTrue( WP_Ban_IP::in_range( '200.0.0.5', '200.0.0.1', '200.0.0.10' ) );
-		$this->assertTrue( WP_Ban_IP::in_range( '255.255.255.254', '200.0.0.1', '255.255.255.255' ) );
+		$this->assertTrue( WP_Ban_IP::in_range( '200.0.0.5', '200.0.0.1', '200.0.0.10' ), 'Addresses above 127 compare unsigned rather than as signed bytes.' );
+		$this->assertTrue( WP_Ban_IP::in_range( '255.255.255.254', '200.0.0.1', '255.255.255.255' ), 'The top of the IPv4 space compares correctly.' );
 	}
 
 	public function test_parse_range_requires_exactly_two_bounds() {
-		$this->assertFalse( WP_Ban_IP::parse_range( 'no-separator' ) );
-		$this->assertFalse( WP_Ban_IP::parse_range( '1.1.1.1' ) );
+		$this->assertFalse( WP_Ban_IP::parse_range( 'no-separator' ), 'A range needs a separator between its two bounds.' );
+		$this->assertFalse( WP_Ban_IP::parse_range( '1.1.1.1' ), 'A single address is not a range.' );
 		$this->assertSame(
 			array( '203.0.113.10', '203.0.113.20' ),
 			WP_Ban_IP::parse_range( '203.0.113.10-203.0.113.20' )
@@ -116,7 +116,8 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 	public function test_in_any_range_skips_malformed_entries_and_keeps_looking() {
 		$this->assertTrue(
-			WP_Ban_IP::in_any_range( array( 'junk', '203.0.113.10-203.0.113.20' ), '203.0.113.15' )
+			WP_Ban_IP::in_any_range( array( 'junk', '203.0.113.10-203.0.113.20' ), '203.0.113.15' ),
+			'A malformed entry is skipped and the search carries on to the valid one.'
 		);
 	}
 

@@ -73,6 +73,6 @@ class WP_Ban_Trust_Proxy_Test extends WP_Ban_TestCase {
 
 		remove_all_filters( 'wp_ban_trust_proxy' );
 
-		$this->assertTrue( $seen );
+		$this->assertTrue( $seen, 'The filter is handed the constant as its default value.' );
 	}
 }

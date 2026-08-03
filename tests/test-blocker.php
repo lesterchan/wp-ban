@@ -21,7 +21,7 @@ class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
 		$this->set_options( array( 'lists' => array( 'ips' => array( '192.168.77.10' ) ) ) );
 
-		$this->assertFalse( $this->run_ban_check() );
+		$this->assertFalse( $this->run_ban_check(), 'An address on no list is not banned.' );
 	}
 
 	public function test_a_wildcard_ip_ban_is_still_selective() {
@@ -31,7 +31,7 @@ class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 		$this->assertSame( '192.168.1.55', $this->run_ban_check() );
 
 		$_SERVER['REMOTE_ADDR'] = '192.168.2.55';
-		$this->assertFalse( $this->run_ban_check() );
+		$this->assertFalse( $this->run_ban_check(), 'A wildcard ban still lets an address outside it through.' );
 	}
 
 	public function test_a_listed_range_is_banned() {
@@ -103,7 +103,7 @@ class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 
 		$this->set_options( array() );
 
-		$this->assertFalse( $this->run_ban_check() );
+		$this->assertFalse( $this->run_ban_check(), 'With every list empty, nobody is banned.' );
 	}
 
 	public function test_a_ban_records_a_statistic() {
@@ -135,7 +135,7 @@ class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 		$denied = $this->run_ban_check();
 		remove_filter( 'wp_ban_enabled', '__return_false' );
 
-		$this->assertFalse( $denied );
+		$this->assertFalse( $denied, 'A filter returning false switches the check off entirely.' );
 	}
 
 	public function test_the_status_code_defaults_to_403_and_is_filterable() {
@@ -195,7 +195,7 @@ class WP_Ban_Blocker_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.1';
 		$this->set_options( array( 'lists' => array( 'ips' => array( '192.168.77.10' ) ) ) );
 
-		$this->assertFalse( $this->run_ban_check() );
+		$this->assertFalse( $this->run_ban_check(), 'The filtered address is the one checked, so an unbanned substitute passes.' );
 
 		add_filter( 'wp_ban_ipaddress', static fn() => '192.168.77.10' );
 		$denied = $this->run_ban_check();
