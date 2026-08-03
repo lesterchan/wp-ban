@@ -170,14 +170,14 @@ class WP_Ban_Metadata_Test extends Plugin_Metadata_TestCase {
 	 * than a typo.
 	 */
 	public function test_the_gpl_block_is_the_or_later_variant() {
-		$this->assertSame( 'GPLv2 or later', $this->header_field( 'License' ) );
+		$this->assertSame( 'GPLv2 or later', $this->header_field( 'License' ), 'The header offers the later-version option.' );
 		$this->assertStringContainsString(
 			'either version 2 of the License, or',
 			$this->plugin_file(),
 			'The GPL comment block must be the "or later" variant.'
 		);
-		$this->assertStringContainsString( '(at your option) any later version.', $this->plugin_file() );
-		$this->assertStringContainsString( '"license": "GPL-2.0-or-later"', wp_ban_test_read( 'composer.json' ) );
+		$this->assertStringContainsString( '(at your option) any later version.', $this->plugin_file(), 'And the licence comment offers it too.' );
+		$this->assertStringContainsString( '"license": "GPL-2.0-or-later"', wp_ban_test_read( 'composer.json' ), 'And composer.json says the same in SPDX form.' );
 	}
 
 	/**
@@ -209,7 +209,8 @@ class WP_Ban_Metadata_Test extends Plugin_Metadata_TestCase {
 			"### Donations\nI spent most of my free time creating, updating, maintaining and supporting"
 			. ' these plugins, if you really love my plugins and could spare me a couple of bucks,'
 			. ' I will really appreciate it. If not feel free to use it without any obligations.',
-			$this->readme()
+			$this->readme(),
+			'The readme carries the collection Donations paragraph, word for word.'
 		);
 	}
 }

@@ -14,17 +14,17 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		delete_option( WP_Ban_Options::OPTION );
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'With no row stored the lists are empty.' );
 		// Blank, which is what says "no proxy" now that the checkbox is gone.
-		$this->assertSame( '', WP_Ban_Options::get()['ip_header'] );
-		$this->assertStringContainsString( 'wp-ban-container', WP_Ban_Options::message() );
+		$this->assertSame( '', WP_Ban_Options::get()['ip_header'], 'No header is trusted.' );
+		$this->assertStringContainsString( 'wp-ban-container', WP_Ban_Options::message(), 'And the shipped message is what a banned visitor sees.' );
 	}
 
 	public function test_a_corrupt_row_falls_back_to_the_defaults() {
 		update_option( WP_Ban_Options::OPTION, 'not an array at all' );
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'A corrupt row falls back to the defaults rather than propagating.' );
 		$this->assertNotEmpty( WP_Ban_Options::message(), 'A corrupt row falls back to the shipped defaults rather than to nothing.' );
 	}
 
@@ -32,21 +32,23 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		update_option( WP_Ban_Options::OPTION, array( 'lists' => array( 'ips' => 'not a list' ) ) );
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertSame( array(), WP_Ban_Options::list_of( 'hosts' ) );
+		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'A row missing keys is normalised, so a read never returns null.' );
+		$this->assertSame( array(), WP_Ban_Options::list_of( 'hosts' ), 'For every list, not only the one that was present.' );
 	}
 
 	public function test_lines_to_list_trims_and_drops_blanks_and_duplicates() {
 		$this->assertSame(
 			array( '1.1.1.1', '2.2.2.2' ),
-			WP_Ban_Options::lines_to_list( "1.1.1.1\n\n  2.2.2.2  \n\n1.1.1.1\n" )
+			WP_Ban_Options::lines_to_list( "1.1.1.1\n\n  2.2.2.2  \n\n1.1.1.1\n" ),
+			'Lines are trimmed, blanks dropped and duplicates removed.'
 		);
 	}
 
 	public function test_lines_to_list_handles_every_line_ending() {
 		$this->assertSame(
 			array( 'a', 'b', 'c' ),
-			WP_Ban_Options::lines_to_list( "a\r\nb\rc" )
+			WP_Ban_Options::lines_to_list( "a\r\nb\rc" ),
+			'Every line ending is recognised, not only the Unix one.'
 		);
 	}
 
@@ -60,7 +62,8 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	public function test_lines_to_list_accepts_an_already_split_list() {
 		$this->assertSame(
 			array( '1.1.1.1', '2.2.2.2' ),
-			WP_Ban_Options::lines_to_list( array( '1.1.1.1', '', '2.2.2.2' ) )
+			WP_Ban_Options::lines_to_list( array( '1.1.1.1', '', '2.2.2.2' ) ),
+			'An already-split list is accepted, so a caller need not join it first.'
 		);
 	}
 
@@ -75,7 +78,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		update_option( WP_Ban_Options::OPTION, $options );
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array( '1.1.1.1', '2.2.2.2' ), WP_Ban_Options::list_of( 'ips' ) );
+		$this->assertSame( array( '1.1.1.1', '2.2.2.2' ), WP_Ban_Options::list_of( 'ips' ), 'Writing back what get() returned keeps the lists, so a read-modify-write is safe.' );
 	}
 
 	/**
@@ -88,7 +91,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'referers' => 'http://*.spam.test/?a=1&b=2' ) )
 		);
 
-		$this->assertSame( array( 'http://*.spam.test/?a=1&b=2' ), $clean['lists']['referers'] );
+		$this->assertSame( array( 'http://*.spam.test/?a=1&b=2' ), $clean['lists']['referers'], 'An ampersand survives the sanitiser unescaped, so the entry still matches a real header.' );
 	}
 
 	public function test_sanitizing_is_idempotent() {
@@ -101,7 +104,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		$once  = WP_Ban_Options::sanitize( $input );
 		$twice = WP_Ban_Options::sanitize( $once );
 
-		$this->assertSame( $once, $twice );
+		$this->assertSame( $once, $twice, 'Sanitising twice gives the same result; the function is idempotent.' );
 	}
 
 	/**
@@ -134,9 +137,9 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 		$clean = WP_Ban_Options::sanitize( array( 'message' => '<div id="wp-ban-container"><p>Yours</p></div>' ) );
 
-		$this->assertSame( 'HTTP_CF_CONNECTING_IP', $clean['ip_header'] );
-		$this->assertSame( array( '203.0.113.5' ), $clean['lists']['ips'] );
-		$this->assertStringContainsString( 'Yours', $clean['message'] );
+		$this->assertSame( 'HTTP_CF_CONNECTING_IP', $clean['ip_header'], 'A field the submission omitted keeps its stored value.' );
+		$this->assertSame( array( '203.0.113.5' ), $clean['lists']['ips'], 'And a list it omitted keeps its stored entries.' );
+		$this->assertStringContainsString( 'Yours', $clean['message'], 'And the message, so one tab cannot blank another.' );
 	}
 
 	/**
@@ -150,7 +153,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 		$clean = WP_Ban_Options::sanitize( array( 'lists' => array( 'ips' => '' ) ) );
 
-		$this->assertSame( array(), $clean['lists']['ips'] );
+		$this->assertSame( array(), $clean['lists']['ips'], 'While a list the submission emptied is actually emptied, rather than treated as absent.' );
 	}
 
 	/**
@@ -172,14 +175,14 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 		$clean = WP_Ban_Options::sanitize( array( 'message' => '<div id="wp-ban-container"><p>Nope</p></div>' ) );
 
-		$this->assertSame( array( '203.0.113.44' ), $clean['lists']['ips'] );
-		$this->assertSame( array(), get_settings_errors( WP_Ban_Options::OPTION ) );
+		$this->assertSame( array( '203.0.113.44' ), $clean['lists']['ips'], 'A save from another tab leaves the stored lists as they are.' );
+		$this->assertSame( array(), get_settings_errors( WP_Ban_Options::OPTION ), 'And raises no validation error about entries it never examined.' );
 	}
 
 	public function test_a_header_name_is_restricted_to_the_shape_php_uses() {
-		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::sanitize( array( 'ip_header' => 'http_cf_connecting_ip' ) )['ip_header'] );
-		$this->assertSame( '', WP_Ban_Options::sanitize( array( 'ip_header' => 'not a header name' ) )['ip_header'] );
-		$this->assertSame( '', WP_Ban_Options::sanitize( array( 'ip_header' => 'HTTP_X; DROP' ) )['ip_header'] );
+		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::sanitize( array( 'ip_header' => 'http_cf_connecting_ip' ) )['ip_header'], 'A header name is upper-cased into the shape PHP uses.' );
+		$this->assertSame( '', WP_Ban_Options::sanitize( array( 'ip_header' => 'not a header name' ) )['ip_header'], 'One that cannot be a header name is rejected.' );
+		$this->assertSame( '', WP_Ban_Options::sanitize( array( 'ip_header' => 'HTTP_X; DROP' ) )['ip_header'], 'Including one carrying SQL, which never reaches a query.' );
 	}
 
 	public function test_malformed_ranges_are_rejected_on_save() {
@@ -187,13 +190,13 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'ips_range' => "203.0.113.10-203.0.113.20\ngarbage-203.0.113.255\nnope" ) )
 		);
 
-		$this->assertSame( array( '203.0.113.10-203.0.113.20' ), $clean['lists']['ips_range'] );
+		$this->assertSame( array( '203.0.113.10-203.0.113.20' ), $clean['lists']['ips_range'], 'A malformed range is rejected on save, leaving the well-formed one.' );
 	}
 
 	public function test_an_empty_message_falls_back_to_the_default() {
 		$clean = WP_Ban_Options::sanitize( array( 'message' => '   ' ) );
 
-		$this->assertSame( WP_Ban_Options::default_message(), $clean['message'] );
+		$this->assertSame( WP_Ban_Options::default_message(), $clean['message'], 'An empty message falls back to the shipped template rather than banning silently.' );
 	}
 
 	public function test_the_message_is_run_through_kses() {
@@ -201,8 +204,8 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'message' => '<div id="wp-ban-container"><p>Nope</p><script>alert(1)</script></div>' )
 		);
 
-		$this->assertStringNotContainsString( '<script', $clean['message'] );
-		$this->assertStringContainsString( 'wp-ban-container', $clean['message'] );
+		$this->assertStringNotContainsString( '<script', $clean['message'], 'The message is filtered, so a script cannot be stored in it.' );
+		$this->assertStringContainsString( 'wp-ban-container', $clean['message'], 'While the markup it is meant to carry survives.' );
 	}
 
 	public function test_the_message_may_be_a_whole_html_document() {
@@ -222,16 +225,17 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	}
 
 	public function test_the_shipped_template_carries_no_inline_style_attribute() {
-		$this->assertStringNotContainsString( 'style="', WP_Ban_Options::default_message() );
+		$this->assertStringNotContainsString( 'style="', WP_Ban_Options::default_message(), 'The shipped template carries no inline style, so a theme can restyle the page.' );
 	}
 
 	public function test_list_to_lines_round_trips() {
 		$this->set_options( array( 'lists' => array( 'ips' => array( '1.1.1.1', '2.2.2.2' ) ) ) );
 
-		$this->assertSame( "1.1.1.1\n2.2.2.2", WP_Ban_Options::list_to_lines( 'ips' ) );
+		$this->assertSame( "1.1.1.1\n2.2.2.2", WP_Ban_Options::list_to_lines( 'ips' ), 'A list renders as one entry per line.' );
 		$this->assertSame(
 			array( '1.1.1.1', '2.2.2.2' ),
-			WP_Ban_Options::lines_to_list( WP_Ban_Options::list_to_lines( 'ips' ) )
+			WP_Ban_Options::lines_to_list( WP_Ban_Options::list_to_lines( 'ips' ) ),
+			'And parses back to the same list, so the textarea round-trips.'
 		);
 	}
 
@@ -246,7 +250,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'ips' => "203.0.113.44\n8.8.8.8" ) )
 		);
 
-		$this->assertSame( array( '8.8.8.8' ), $clean['lists']['ips'] );
+		$this->assertSame( array( '8.8.8.8' ), $clean['lists']['ips'], 'Your own address is dropped from the list; you cannot ban yourself.' );
 	}
 
 	public function test_you_cannot_ban_a_wildcard_covering_your_own_address() {
@@ -254,7 +258,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 		$clean = WP_Ban_Options::sanitize( array( 'lists' => array( 'ips' => '203.0.113.*' ) ) );
 
-		$this->assertSame( array(), $clean['lists']['ips'] );
+		$this->assertSame( array(), $clean['lists']['ips'], 'Nor with a wildcard that covers it.' );
 	}
 
 	public function test_you_cannot_ban_a_range_containing_your_own_address() {
@@ -264,7 +268,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'ips_range' => "203.0.113.1-203.0.113.100\n8.8.8.1-8.8.8.9" ) )
 		);
 
-		$this->assertSame( array( '8.8.8.1-8.8.8.9' ), $clean['lists']['ips_range'] );
+		$this->assertSame( array( '8.8.8.1-8.8.8.9' ), $clean['lists']['ips_range'], 'Nor with a range that contains it.' );
 	}
 
 	public function test_you_cannot_ban_your_own_user_agent() {
@@ -274,7 +278,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'user_agents' => "MyBrowser*\nEvilBot*" ) )
 		);
 
-		$this->assertSame( array( 'EvilBot*' ), $clean['lists']['user_agents'] );
+		$this->assertSame( array( 'EvilBot*' ), $clean['lists']['user_agents'], 'Nor by your own user agent.' );
 	}
 
 	public function test_you_cannot_ban_your_own_site_as_a_referrer() {
@@ -282,7 +286,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 			array( 'lists' => array( 'referers' => get_option( 'home' ) . "\nhttp://*.spam.test" ) )
 		);
 
-		$this->assertSame( array( 'http://*.spam.test' ), $clean['lists']['referers'] );
+		$this->assertSame( array( 'http://*.spam.test' ), $clean['lists']['referers'], 'Nor by your own site as a referrer.' );
 	}
 
 	public function test_self_ban_protection_can_be_switched_off() {
@@ -292,6 +296,6 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		$clean = WP_Ban_Options::sanitize( array( 'lists' => array( 'ips' => '203.0.113.44' ) ) );
 		remove_filter( 'wp_ban_protect_self', '__return_false' );
 
-		$this->assertSame( array( '203.0.113.44' ), $clean['lists']['ips'] );
+		$this->assertSame( array( '203.0.113.44' ), $clean['lists']['ips'], 'And a filter can switch the protection off, for somebody who means it.' );
 	}
 }

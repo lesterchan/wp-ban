@@ -108,8 +108,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		$html = $this->render( $tab );
 
 		$this->assertGreaterThan( 1000, strlen( $html ), "the {$tab} tab rendered almost nothing" );
-		$this->assertStringNotContainsString( '<?php', $html );
-		$this->assertStringNotContainsString( 'Fatal error', $html );
+		$this->assertStringNotContainsString( '<?php', $html, 'No PHP tag reached the page, which would mean a template was echoed unparsed.' );
+		$this->assertStringNotContainsString( 'Fatal error', $html, 'And no PHP diagnostic.' );
 	}
 
 	/**
@@ -124,9 +124,9 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_no_tab_carries_the_usual_rendering_damage( $tab ) {
 		$html = $this->render( $tab );
 
-		$this->assertStringNotContainsString( 'translators:', $html );
-		$this->assertStringNotContainsString( '&amp;amp;', $html );
-		$this->assertStringNotContainsString( '&amp;quot;', $html );
+		$this->assertStringNotContainsString( 'translators:', $html, 'No translator comment leaked into the markup.' );
+		$this->assertStringNotContainsString( '&amp;amp;', $html, 'No ampersand is encoded twice.' );
+		$this->assertStringNotContainsString( '&amp;quot;', $html, 'And no quote, which is what a second escaping pass would leave.' );
 	}
 
 	public function data_tabs() {
@@ -146,12 +146,14 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_tabs_are_stats_settings_and_templates_in_that_order() {
 		$this->assertSame(
 			array( 'stats', 'settings', 'templates' ),
-			array_keys( WP_Ban_Settings::tabs() )
+			array_keys( WP_Ban_Settings::tabs() ),
+			'The tabs are in the documented order, stats first.'
 		);
 
 		$this->assertSame(
 			array( 'Stats', 'Settings', 'Templates' ),
-			array_values( WP_Ban_Settings::tabs() )
+			array_values( WP_Ban_Settings::tabs() ),
+			'With the labels that go with them.'
 		);
 	}
 
@@ -161,7 +163,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_screen_opens_on_the_stats_tab() {
 		unset( $_GET['tab'] );
 
-		$this->assertSame( 'stats', WP_Ban_Settings::current_tab() );
+		$this->assertSame( 'stats', WP_Ban_Settings::current_tab(), 'With no tab asked for, the screen opens on stats.' );
 
 		$_GET['tab'] = 'not-a-tab';
 
@@ -169,7 +171,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$_GET['tab'] = 'templates';
 
-		$this->assertSame( 'templates', WP_Ban_Settings::current_tab() );
+		$this->assertSame( 'templates', WP_Ban_Settings::current_tab(), 'And a tab asked for by name is the one that opens.' );
 	}
 
 	/**
@@ -180,7 +182,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_every_tab_links_to_the_other_two_and_marks_itself_active( $tab ) {
 		$html = $this->render( $tab );
 
-		$this->assertStringContainsString( 'nav-tab-wrapper', $html );
+		$this->assertStringContainsString( 'nav-tab-wrapper', $html, 'The screen carries the core tab nav.' );
 
 		foreach ( array_keys( WP_Ban_Settings::tabs() ) as $slug ) {
 			$this->assertStringContainsString(
@@ -191,19 +193,19 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		}
 
 		// One active tab, and it is this one.
-		$this->assertSame( 1, substr_count( $html, 'nav-tab-active' ) );
+		$this->assertSame( 1, substr_count( $html, 'nav-tab-active' ), 'With exactly one tab marked active, not two.' );
 
 		preg_match( '/href="([^"]*)" class="nav-tab nav-tab-active"/', $html, $matches );
 
 		$this->assertNotEmpty( $matches, 'no tab is marked active' );
-		$this->assertStringContainsString( 'tab=' . $tab, html_entity_decode( $matches[1] ) );
+		$this->assertStringContainsString( 'tab=' . $tab, html_entity_decode( $matches[1] ), 'The ' . $tab . ' tab is not linked from this one.' );
 	}
 
 	public function test_the_stats_tab_is_a_table_rather_than_a_settings_form() {
 		$html = $this->render( 'stats' );
 
-		$this->assertStringNotContainsString( 'action="options.php"', $html );
-		$this->assertStringContainsString( 'wp-list-table', $html );
+		$this->assertStringNotContainsString( 'action="options.php"', $html, 'The stats tab is not a settings form; there is nothing on it to save.' );
+		$this->assertStringContainsString( 'wp-list-table', $html, 'It is a list table.' );
 	}
 
 	/**
@@ -214,11 +216,11 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_a_form_tab_posts_to_options_php_with_the_one_settings_group( $tab ) {
 		$html = $this->render( $tab );
 
-		$this->assertStringContainsString( 'action="options.php"', $html );
-		$this->assertStringContainsString( WP_Ban_Settings::GROUP, $html );
+		$this->assertStringContainsString( 'action="options.php"', $html, 'A form tab posts to options.php.' );
+		$this->assertStringContainsString( WP_Ban_Settings::GROUP, $html, 'Under the one settings group the whole screen shares.' );
 
 		// One group across all three tabs, so one option row behind them.
-		$this->assertSame( 1, substr_count( $html, 'option_page' ) );
+		$this->assertSame( 1, substr_count( $html, 'option_page' ), 'And declares it once, so a save is not registered twice.' );
 	}
 
 	/**
@@ -262,7 +264,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_every_list_has_a_textarea( $key ) {
 		$this->assertStringContainsString(
 			WP_Ban_Options::OPTION . '[lists][' . $key . ']',
-			$this->render( 'settings' )
+			$this->render( 'settings' ),
+			'The ' . $key . ' list has no textarea to edit it in.'
 		);
 	}
 
@@ -293,11 +296,11 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		$lists   = WP_Ban_Options::OPTION . '[lists]';
 		$message = WP_Ban_Options::OPTION . '[message]';
 
-		$this->assertStringContainsString( $header, $settings );
-		$this->assertStringContainsString( $lists, $settings );
+		$this->assertStringContainsString( $header, $settings, 'The header field is on the settings tab.' );
+		$this->assertStringContainsString( $lists, $settings, 'And the lists.' );
 		$this->assertStringNotContainsString( $message, $settings, 'the message template leaked onto the Settings tab' );
 
-		$this->assertStringContainsString( $message, $templates );
+		$this->assertStringContainsString( $message, $templates, 'While the message is on the templates tab, so neither tab carries the other fields.' );
 		$this->assertStringNotContainsString( $header, $templates, 'the proxy field leaked onto the Templates tab' );
 		$this->assertStringNotContainsString( $lists, $templates, 'the ban lists leaked onto the Templates tab' );
 
@@ -318,8 +321,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_settings_tab_no_longer_offers_a_reverse_proxy_checkbox() {
 		$html = $this->render( 'settings' );
 
-		$this->assertStringNotContainsString( WP_Ban_Options::OPTION . '[reverse_proxy]', $html );
-		$this->assertStringNotContainsString( 'This site is behind a reverse proxy', $html );
+		$this->assertStringNotContainsString( WP_Ban_Options::OPTION . '[reverse_proxy]', $html, 'The withdrawn reverse proxy checkbox is gone from the form.' );
+		$this->assertStringNotContainsString( 'This site is behind a reverse proxy', $html, 'And its label with it, rather than standing over nothing.' );
 	}
 
 	/**
@@ -332,15 +335,16 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_header_field_and_its_example_name_the_same_header() {
 		$html = $this->render( 'settings' );
 
-		$this->assertStringContainsString( 'placeholder="HTTP_X_FORWARDED_FOR"', $html );
-		$this->assertStringContainsString( 'Example: <code>HTTP_X_FORWARDED_FOR</code>', $html );
+		$this->assertStringContainsString( 'placeholder="HTTP_X_FORWARDED_FOR"', $html, 'The field suggests a header name.' );
+		$this->assertStringContainsString( 'Example: <code>HTTP_X_FORWARDED_FOR</code>', $html, 'And the example beside it names the same one, so the two cannot disagree.' );
 
 		// The sentence the other four plugins carry, byte for byte. It used to
 		// end "..., unless the checkbox above is ticked", and there is no
 		// checkbox above.
 		$this->assertStringContainsString(
 			'Leave this blank unless the site is behind a reverse proxy or CDN. Blank means the address the web server saw is used.',
-			$html
+			$html,
+			'With the description that says when to fill it in and what blank means.'
 		);
 	}
 
@@ -358,7 +362,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			$this->assertStringContainsString( $token, $html, "{$token} is not offered on the screen" );
 		}
 
-		$this->assertStringNotContainsString( '%1$', $html );
+		$this->assertStringNotContainsString( '%1$', $html, 'The message tokens render as themselves rather than being consumed as format specifiers.' );
 	}
 
 	public function test_stored_entries_appear_in_their_textarea_unescaped() {
@@ -370,8 +374,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		// esc_textarea() is the escaping at the sink, so the raw & appears as
 		// a single &amp; and nothing more.
-		$this->assertStringContainsString( 'http://*.spam.test/?a=1&amp;b=2', $html );
-		$this->assertStringNotContainsString( '&amp;amp;', $html );
+		$this->assertStringContainsString( 'http://*.spam.test/?a=1&amp;b=2', $html, 'A stored entry appears in its textarea escaped exactly once.' );
+		$this->assertStringNotContainsString( '&amp;amp;', $html, 'With no double encoding, which would change the entry on the next save.' );
 	}
 
 	public function test_the_stats_table_lists_recorded_addresses() {
@@ -379,8 +383,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		$html = $this->render( 'stats' );
 
-		$this->assertStringContainsString( '203.0.113.99', $html );
-		$this->assertStringContainsString( '_wpnonce', $html );
+		$this->assertStringContainsString( '203.0.113.99', $html, 'The stats table lists the addresses that were recorded.' );
+		$this->assertStringContainsString( '_wpnonce', $html, 'And carries a nonce, so the bulk action is not forgeable.' );
 	}
 
 	public function test_the_stats_table_is_paginated() {
@@ -461,7 +465,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_reset_notice_is_shown_once_and_then_forgotten() {
 		set_transient( 'wp_ban_notice_' . get_current_user_id(), 'all', MINUTE_IN_SECONDS );
 
-		$this->assertStringContainsString( 'All ban stats were reset.', $this->render() );
+		$this->assertStringContainsString( 'All ban stats were reset.', $this->render(), 'The reset notice is shown on the render that follows the reset.' );
 
 		$this->assertFalse(
 			get_transient( 'wp_ban_notice_' . get_current_user_id() ),
@@ -498,9 +502,9 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( array( $referer ), WP_Ban_Options::list_of( 'referers' ) );
-		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::get()['ip_header'] );
+		$this->assertSame( array( $referer ), WP_Ban_Options::list_of( 'referers' ), 'A real form post reaches the registered sanitiser, referrers and all.' );
+		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'And the IP list.' );
+		$this->assertSame( 'HTTP_CF_CONNECTING_IP', WP_Ban_Options::get()['ip_header'], 'And the header field.' );
 	}
 
 	/**
@@ -530,7 +534,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		WP_Ban_Options::flush_cache();
 
-		$this->assertSame( $before, WP_Ban_Options::get() );
+		$this->assertSame( $before, WP_Ban_Options::get(), 'Saving the same form twice changes nothing.' );
 	}
 
 	/**
@@ -577,8 +581,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 		WP_Ban_Options::flush_cache();
 
 		$this->assertSame( $message, WP_Ban_Options::message(), 'saving the Settings tab destroyed the message template' );
-		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ) );
-		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'] );
+		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ), 'Saving the templates tab leaves the settings tab lists alone.' );
+		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'], 'And its header field.' );
 
 		// And the Templates tab, which posts one field.
 		update_option(
@@ -588,7 +592,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		WP_Ban_Options::flush_cache();
 
-		$this->assertStringContainsString( 'Rewritten', WP_Ban_Options::message() );
+		$this->assertStringContainsString( 'Rewritten', WP_Ban_Options::message(), 'While the message it did post is actually written.' );
 		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ), 'saving the Templates tab emptied a ban list' );
 		$this->assertSame( array( 'EvilBot*' ), WP_Ban_Options::list_of( 'user_agents' ), 'saving the Templates tab emptied a ban list' );
 		$this->assertSame( 'HTTP_X_REAL_IP', WP_Ban_Options::get()['ip_header'], 'saving the Templates tab reset the trusted header' );
@@ -612,7 +616,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'wp_ban_options', 'wp_ban_stats', 'wp_ban_version' ), $rows );
+		$this->assertSame( array( 'wp_ban_options', 'wp_ban_stats', 'wp_ban_version' ), $rows, 'The plugin owns exactly these three rows, so uninstall has a complete list.' );
 
 		$legacy = $wpdb->get_col(
 			"SELECT option_name FROM {$wpdb->options}
@@ -677,8 +681,8 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		unset( $_REQUEST['_ajax_nonce'] );
 
-		$this->assertStringContainsString( 'PREVIEW-CANARY', $html );
-		$this->assertStringNotContainsString( '%USER_IP%', $html );
+		$this->assertStringContainsString( 'PREVIEW-CANARY', $html, 'The preview renders the stored message.' );
+		$this->assertStringNotContainsString( '%USER_IP%', $html, 'With its tokens substituted, so it shows what a visitor would see.' );
 	}
 
 	/**
@@ -728,7 +732,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	 * why this asserts the count as well as the value.
 	 */
 	public function test_the_stats_form_uses_the_list_table_nonce() {
-		$this->assertSame( 'bulk-' . WP_Ban_Settings::STATS_PLURAL, WP_Ban_Settings::STATS_NONCE );
+		$this->assertSame( 'bulk-' . WP_Ban_Settings::STATS_PLURAL, WP_Ban_Settings::STATS_NONCE, 'The stats nonce is the one the core list table generates for this plural.' );
 
 		WP_Ban_Stats::record( '203.0.113.99' );
 
@@ -736,17 +740,17 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 
 		// Exactly one _wpnonce on the tab: the table's own. There is no settings
 		// form here to contribute a second.
-		$this->assertSame( 1, substr_count( $stats_form, 'name="_wpnonce"' ) );
+		$this->assertSame( 1, substr_count( $stats_form, 'name="_wpnonce"' ), 'The form carries exactly one nonce field.' );
 
 		// And it must be the nonce handle_stats_actions() checks against.
 		preg_match( '/name="_wpnonce" value="([^"]+)"/', $stats_form, $m );
 
 		$this->assertNotEmpty( $m, 'the stats form has no nonce at all' );
-		$this->assertSame( 1, wp_verify_nonce( $m[1], WP_Ban_Settings::STATS_NONCE ) );
+		$this->assertSame( 1, wp_verify_nonce( $m[1], WP_Ban_Settings::STATS_NONCE ), 'And it verifies against the action the handler checks.' );
 
 		// And the form must post back to the tab the table is on, so the
 		// redirect after a bulk action returns to it.
-		$this->assertStringContainsString( 'tab=stats', html_entity_decode( $stats_form ) );
+		$this->assertStringContainsString( 'tab=stats', html_entity_decode( $stats_form ), 'The form returns to the stats tab rather than the default one.' );
 	}
 
 	/**
@@ -792,10 +796,10 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	public function test_the_settings_link_points_at_the_settings_tab() {
 		$links = WP_Ban_Settings::action_links( array() );
 
-		$this->assertStringContainsString( 'page=' . WP_Ban_Settings::PAGE, $links[0] );
+		$this->assertStringContainsString( 'page=' . WP_Ban_Settings::PAGE, $links[0], 'The Settings link points at this plugin screen.' );
 
 		// Somebody who clicked "Settings" came to change one, not to read
 		// counters, so the link skips the screen's default tab.
-		$this->assertStringContainsString( 'tab=settings', html_entity_decode( $links[0] ) );
+		$this->assertStringContainsString( 'tab=settings', html_entity_decode( $links[0] ), 'And at the settings tab specifically, not the stats one the screen opens on.' );
 	}
 }

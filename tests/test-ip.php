@@ -110,7 +110,8 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->assertFalse( WP_Ban_IP::parse_range( '1.1.1.1' ), 'A single address is not a range.' );
 		$this->assertSame(
 			array( '203.0.113.10', '203.0.113.20' ),
-			WP_Ban_IP::parse_range( '203.0.113.10-203.0.113.20' )
+			WP_Ban_IP::parse_range( '203.0.113.10-203.0.113.20' ),
+			'A well-formed range parses into its two bounds.'
 		);
 	}
 
@@ -128,7 +129,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 		$this->set_options( array() );
 
-		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'With nothing opted in, REMOTE_ADDR is the address.' );
 	}
 
 	/**
@@ -143,7 +144,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$_SERVER['REMOTE_ADDR'] = $address;
 		$this->set_options( array() );
 
-		$this->assertSame( $address, WP_Ban_IP::address() );
+		$this->assertSame( $address, WP_Ban_IP::address(), 'A well-formed address comes back byte identical, not normalised into something else.' );
 	}
 
 	public function data_addresses() {
@@ -164,7 +165,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array() );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.1', WP_Ban_IP::address(), 'With proxies trusted, the forwarding header is read.' );
 	}
 
 	/**
@@ -181,11 +182,11 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 		$this->set_options( array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
 
-		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'Naming a header ignores the ones not named.' );
 
 		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.44';
 
-		$this->assertSame( '203.0.113.44', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'And reads the one that was.' );
 	}
 
 	public function test_private_hops_in_a_forwarded_chain_are_stepped_over() {
@@ -195,7 +196,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array() );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '203.0.113.44', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'Private hops in a chain are stepped over to the first public address.' );
 	}
 
 	public function test_an_unusable_chain_falls_back_to_remote_addr() {
@@ -205,7 +206,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array() );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'A chain with nothing usable in it falls back to REMOTE_ADDR.' );
 	}
 
 	/**
@@ -217,7 +218,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array() );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '192.168.5.5', WP_Ban_IP::address() );
+		$this->assertSame( '192.168.5.5', WP_Ban_IP::address(), 'A private REMOTE_ADDR still resolves rather than reading as nothing.' );
 	}
 
 	public function test_a_named_header_outranks_the_generic_list() {
@@ -228,7 +229,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array( 'ip_header' => 'HTTP_CF_CONNECTING_IP' ) );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '203.0.113.77', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.77', WP_Ban_IP::address(), 'A named header outranks the generic list rather than being one of it.' );
 	}
 
 	public function test_an_absent_named_header_falls_back() {
@@ -238,7 +239,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->set_options( array( 'ip_header' => 'HTTP_CF_CONNECTING_IP' ) );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.1', WP_Ban_IP::address(), 'And when the named header is absent, the generic list is used.' );
 	}
 
 	/**
@@ -256,7 +257,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 		$this->set_options( array() );
 
-		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'A forwarding header is ignored entirely until a site opts in; it is visitor-supplied.' );
 	}
 
 	public function test_the_trust_proxy_filter_enables_the_headers() {
@@ -265,22 +266,22 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 
 		$this->set_options( array() );
 
-		$this->assertSame( '198.51.100.7', WP_Ban_IP::address() );
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'Before the filter, the header is ignored.' );
 
 		add_filter( 'wp_ban_trust_proxy', '__return_true' );
-		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.1', WP_Ban_IP::address(), 'After it, the header is read, so the filter is what opts in.' );
 		remove_filter( 'wp_ban_trust_proxy', '__return_true' );
 	}
 
 	public function test_absent_request_headers_yield_empty_strings() {
 		unset( $_SERVER['HTTP_REFERER'], $_SERVER['HTTP_USER_AGENT'] );
 
-		$this->assertSame( '', WP_Ban_IP::referer() );
-		$this->assertSame( '', WP_Ban_IP::user_agent() );
+		$this->assertSame( '', WP_Ban_IP::referer(), 'An absent referer header reads as an empty string rather than a notice.' );
+		$this->assertSame( '', WP_Ban_IP::user_agent(), 'And an absent user agent.' );
 	}
 
 	public function test_hostname_of_an_invalid_address_is_empty() {
-		$this->assertSame( '', WP_Ban_IP::hostname( 'not-an-ip' ) );
-		$this->assertSame( '', WP_Ban_IP::hostname( '' ) );
+		$this->assertSame( '', WP_Ban_IP::hostname( 'not-an-ip' ), 'A hostname is not looked up for something that is not an address.' );
+		$this->assertSame( '', WP_Ban_IP::hostname( '' ), 'Nor for an empty one.' );
 	}
 }

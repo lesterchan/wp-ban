@@ -46,7 +46,7 @@ class WP_Ban_Uninstall_Test extends WP_Ban_TestCase {
 	}
 
 	public function test_the_uninstaller_refuses_to_run_on_its_own() {
-		$this->assertStringContainsString( "defined( 'WP_UNINSTALL_PLUGIN' )", $this->source() );
+		$this->assertStringContainsString( "defined( 'WP_UNINSTALL_PLUGIN' )", $this->source(), 'uninstall.php refuses to run outside the uninstall context.' );
 	}
 
 	/**

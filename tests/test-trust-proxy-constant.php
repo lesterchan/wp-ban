@@ -33,7 +33,7 @@ class WP_Ban_Trust_Proxy_Test extends WP_Ban_TestCase {
 		// removed the checkbox it is the only one that walks PROXY_HEADERS.
 		$this->set_options( array() );
 
-		$this->assertSame( '203.0.113.1', WP_Ban_IP::address() );
+		$this->assertSame( '203.0.113.1', WP_Ban_IP::address(), 'The constant opts the site in to the forwarding headers.' );
 	}
 
 	/**
@@ -52,7 +52,7 @@ class WP_Ban_Trust_Proxy_Test extends WP_Ban_TestCase {
 		$ip = WP_Ban_IP::address();
 		remove_filter( 'wp_ban_trust_proxy', '__return_false' );
 
-		$this->assertSame( '198.51.100.7', $ip );
+		$this->assertSame( '198.51.100.7', $ip, 'And the filter gets the last word over it, so a site can opt back out.' );
 	}
 
 	public function test_the_filter_receives_the_constant_as_its_default() {
