@@ -2,10 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-WP-Ban follows `_standards/STANDARDS.md` in the parent folder, which is the
-contract for all nineteen plugins in the collection. Where this file and that
-one disagree, that one wins.
-
 ## What it is
 
 Blocks visitors by IP, IP range, host name, referrer or user agent, serves them
@@ -14,9 +10,8 @@ a configurable message, and counts the attempts. One screen at
 **Settings** (the six lists and the trusted header) and **Templates** (the banned
 message).
 
-`Settings → Ban` rather than a top-level menu is deliberate — §4.1 names this
-plugin: a read-only table sitting beneath a settings form does not earn a
-sidebar slot.
+`Settings → Ban` rather than a top-level menu is deliberate: a read-only table
+sitting beneath a settings form does not earn a sidebar slot.
 
 ## Data
 
@@ -29,7 +24,10 @@ sidebar slot.
   attacker; folding it into the settings blob would rewrite the whole blob on
   every hit and autoload an unbounded row on every request. Absorbs
   `banned_stats`.
-* `wp_ban_version` — replaces `ban_db_version`.
+* `wp_ban_version` — the `plugin` and `db` upgrade markers, replacing
+  `ban_db_version`. Keep them out of the settings array: a marker in there has
+  to be rescued from the stored value on every save, because the settings form
+  never posts one.
 
 The rename is user-facing: 1.69.2 is on wordpress.org with the old names.
 
@@ -39,8 +37,7 @@ The rename is user-facing: 1.69.2 is on wordpress.org with the old names.
   `WP_List_Table::display_tablenav()` emits its own `_wpnonce` for
   `bulk-{$plural}`; a second `wp_nonce_field()` in the same form does not add a
   check, it *replaces* one — both inputs are named `_wpnonce` and PHP keeps the
-  last — so every bulk action failed its referer check. §4.2.1 cites this plugin
-  as the reference for the problem.
+  last — so every bulk action failed its referer check.
 * **Proxy headers are not trusted by default, and this is a security fix.**
   Every `HTTP_X_FORWARDED_*` header is set by the client, so honouring them
   unconditionally let anyone walk past an IP ban by sending a different value on
@@ -49,13 +46,11 @@ The rename is user-facing: 1.69.2 is on wordpress.org with the old names.
   `wp_ban_trust_proxy` filter, which walk all seven of
   `WP_Ban_IP::PROXY_HEADERS`. `REMOTE_ADDR` is the only address the visitor
   cannot choose.
-* **The "This site is behind a reverse proxy." checkbox is gone**, and it is the
-  answer to `_standards/RESUME.md` task #20: wp-ban was the only one of the five
-  proxy-aware plugins to have it, an empty header field already meant "no
-  proxy", and the box's only distinct meaning was "trust whichever of the seven
-  turns up" — the thing the field's own warning tells owners not to do. The
-  constant and the filter stay; they are the documented escape hatch and were
-  untouched by the removal.
+* **The "This site is behind a reverse proxy." checkbox is gone.** An empty
+  header field already meant "no proxy", and the box's only distinct meaning was
+  "trust whichever of the seven turns up" — the thing the field's own warning
+  tells owners not to do. The constant and the filter stay; they are the
+  documented escape hatch and were untouched by the removal.
 * **`reverse_proxy` was a released setting, so the removal had to migrate.**
   `migrate()` folds a truthy `reverse_proxy` with an empty `ip_header` into
   `ip_header = 'HTTP_X_FORWARDED_FOR'`. Without that, such a site would fall
@@ -86,21 +81,31 @@ The rename is user-facing: 1.69.2 is on wordpress.org with the old names.
   `preg_match_wildcard()`…) is gone with no shims. They were unprefixed and
   declared on every request.
 
+## Testing the migration, and the ordering that makes it easy
+
+`WP_Ban_Settings::register()` calls `maybe_upgrade()` **before**
+`register_setting()`, so on an ordinary admin request the fold-in runs before
+either of that function's filters exists. That is the easy path, and a test that
+takes it proves less than it looks:
+
+* With `register_setting()` already run, the sanitize callback is attached to
+  the settings row and a `default` — where one is passed — makes an absent row
+  read back as the defaults rather than `false`. A migration that reads the row
+  bare then skips its fold-in while deleting the legacy rows anyway.
+* `test-migration.php::migrate_on_admin_init()` therefore registers first and
+  seeds the legacy rows afterwards, which puts the fold-in on the far side of
+  both `sanitize_option_` and `default_option_`.
+* Read the row **raw** when the question is "was it written": the options
+  accessor merges the defaults, so it cannot tell a written row from an absent
+  one.
+
 ## Tests
+
+`bin/test.sh` runs PHPUnit, `bin/test-multisite.sh` the network pass, and
+`bin/test-e2e.sh` the Playwright suite. **Run them rather than trusting a note
+about their last result** — CI is the authority, and this file cannot be.
 
 `test-migration.php` covers the eight-row fold-in, the un-escaping and the
 `reverse_proxy` → `ip_header` retargeting; `test-ip.php` the range parsing and
 proxy resolution; `test-trust-proxy-constant.php` the constant/filter
 interaction. `helper-exception.php` exists because the ban path calls `exit`.
-
-`WP_Ban_Settings::register()` calls `maybe_upgrade()` **before**
-`register_setting()`, so one call migrates before either of that function's
-filters exists — the easy ordering, and the one §7.6.1 warns about testing
-against. `test-migration.php::migrate_on_admin_init()` therefore registers
-first and seeds the legacy rows afterwards, which puts the fold-in on the far
-side of both `sanitize_option_` and `default_option_`.
-
-wp-ban was one of the five plugins green on the very first PHPUnit sweep.
-`tests/e2e/` is 5 specs and 58 tests, and **none of them has been run to green
-in one go** — verify before trusting. This plugin's `upgrade.spec.js` predates
-the 2026-08-05 sweep that ran the other eleven, so it was not among them.
