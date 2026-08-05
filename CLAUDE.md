@@ -101,5 +101,6 @@ first and seeds the legacy rows afterwards, which puts the fold-in on the far
 side of both `sanitize_option_` and `default_option_`.
 
 wp-ban was one of the five plugins green on the very first PHPUnit sweep.
-`tests/e2e/` (5 specs, 55 tests) is among the twelve suites
-`_standards/RESUME.md` lists as **never run to green** — verify before trusting.
+`tests/e2e/` is 5 specs and 58 tests, and **none of them has been run to green
+in one go** — verify before trusting. This plugin's `upgrade.spec.js` predates
+the 2026-08-05 sweep that ran the other eleven, so it was not among them.
