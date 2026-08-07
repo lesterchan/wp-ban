@@ -118,10 +118,10 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 
 ## Screenshots
 
-1. The Stats tab
-2. The Settings tab: visitor IP address
-3. The Settings tab: ban lists
-4. The Templates tab: banned message and its preview
+1. Settings -> WP-Ban, the Settings tab: the six lists a visitor is matched against
+2. The Templates tab, holding the whole page a banned visitor is served
+3. The Stats tab, counting what each banned address has tried
+4. What a banned visitor gets instead of the site
 
 ## Changelog
 ### 2.0.0
