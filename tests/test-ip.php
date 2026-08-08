@@ -270,7 +270,7 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 	}
 
 	/**
-	 * filter_var() validates and hands the string back as it arrived, so one
+	 * Validation with filter_var() hands the string back as it arrived, so one
 	 * address had several spellings and the lists compare strings. Where the
 	 * visitor picks the spelling -- any site that has named a proxy header --
 	 * that is a ban evasion; where they do not, it is a silent miss, because a

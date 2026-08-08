@@ -577,15 +577,10 @@ class WP_Ban_Options {
 	}
 
 	/**
-	 * HTML permitted in the banned message.
-	 *
-	 * @return array
-	 */
-	/**
 	 * Filter a submitted ban message.
 	 *
-	 * kses does the markup, and then the CSS -- which kses has no opinion about
-	 * at all. It filters `style` *attributes* through safecss_filter_attr(), but
+	 * The markup goes through kses, and then the CSS -- which kses has no
+	 * opinion about at all. It filters `style` *attributes* through safecss_filter_attr(), but
 	 * the body of a `<style>` element passes through as text, and this allow
 	 * list has to permit that element because the shipped message centres itself
 	 * with one.
@@ -626,6 +621,11 @@ class WP_Ban_Options {
 		);
 	}
 
+	/**
+	 * HTML permitted in the banned message.
+	 *
+	 * @return array
+	 */
 	public static function allowed_html() {
 		$allowed = wp_kses_allowed_html( 'post' );
 

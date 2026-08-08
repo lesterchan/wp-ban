@@ -215,8 +215,8 @@ class WP_Ban_IP {
 	/**
 	 * Reduce an address to the one spelling everything else compares against.
 	 *
-	 * filter_var() validates and hands the string back exactly as it arrived, so
-	 * the same address had several spellings and the lists compare strings.
+	 * Validation with filter_var() hands the string back exactly as it arrived,
+	 * so the same address had several spellings and the lists compare strings.
 	 * `2001:0db8:0000:0000:0000:0000:0000:0001`, `2001:DB8::1` and `2001:db8::1`
 	 * are one address and were three ban entries; and an IPv4-mapped
 	 * `::ffff:203.0.113.5` matched neither an IPv4 entry nor an IPv4 range,
