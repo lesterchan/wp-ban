@@ -28,6 +28,12 @@ Everything is configured under `Settings -> Ban`, on three tabs: **Stats** for t
 ### Donations
 I spent most of my free time creating, updating, maintaining and supporting these plugins, if you really love my plugins and could spare me a couple of bucks, I will really appreciate it. If not feel free to use it without any obligations.
 
+## Installation
+
+1. Install and activate the plugin.
+1. Go to `WP-Admin -> Settings -> Ban` and fill in the lists you want on the **Settings** tab.
+1. If your site sits behind a proxy or a CDN, set the visitor IP header on that same tab. Without it every visitor arrives carrying the proxy's address, so an IP ban catches everybody or nobody.
+
 ## Usage
 Go to `Settings -> Ban`. The screen has three tabs and opens on **Stats**.
 
