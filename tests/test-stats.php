@@ -70,6 +70,53 @@ class WP_Ban_Stats_Test extends WP_Ban_TestCase {
 	 * The row is written on every banned request and grows one entry per
 	 * attacker, so it must never load on every page view.
 	 */
+	/**
+	 * One key per distinct address, with no cap and no expiry -- and the whole
+	 * array is unserialised, incremented and written back on every banned
+	 * request, so the cost of a request grew with the number of addresses ever
+	 * seen. Being banned is not an obstacle to arriving here: a visitor opts in
+	 * by sending a banned user agent, which needs no IP match at all.
+	 */
+	public function test_the_address_breakdown_stops_growing_at_the_ceiling() {
+		add_filter( 'wp_ban_max_tracked_addresses', static fn() => 10 );
+
+		for ( $i = 0; $i < 200; $i++ ) {
+			WP_Ban_Stats::record( '198.51.100.' . $i );
+		}
+
+		$stats = WP_Ban_Stats::get();
+
+		$this->assertLessThanOrEqual( 10, count( $stats['users'] ), 'Two hundred addresses leave at most the ceiling.' );
+		$this->assertSame( 200, $stats['count'], 'While the total, which is one integer, still counts every one of them.' );
+	}
+
+	public function test_the_addresses_turned_away_most_often_are_the_ones_kept() {
+		add_filter( 'wp_ban_max_tracked_addresses', static fn() => 2 );
+
+		for ( $i = 0; $i < 5; $i++ ) {
+			WP_Ban_Stats::record( '203.0.113.1' );
+		}
+
+		WP_Ban_Stats::record( '203.0.113.2' );
+		WP_Ban_Stats::record( '203.0.113.2' );
+		WP_Ban_Stats::record( '203.0.113.3' );
+
+		$stats = WP_Ban_Stats::get();
+
+		$this->assertArrayHasKey( '203.0.113.1', $stats['users'], 'The worst offender is what the breakdown is for.' );
+		$this->assertArrayHasKey( '203.0.113.3', $stats['users'], 'And the address being recorded right now is never the one dropped.' );
+	}
+
+	public function test_the_ceiling_can_be_removed() {
+		add_filter( 'wp_ban_max_tracked_addresses', '__return_zero' );
+
+		for ( $i = 0; $i < 30; $i++ ) {
+			WP_Ban_Stats::record( '198.51.100.' . $i );
+		}
+
+		$this->assertCount( 30, WP_Ban_Stats::get()['users'], 'Zero restores the unbounded behaviour, for anyone who wants it.' );
+	}
+
 	public function test_the_row_is_never_autoloaded() {
 		global $wpdb;
 

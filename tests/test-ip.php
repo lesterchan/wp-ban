@@ -189,14 +189,104 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'And reads the one that was.' );
 	}
 
-	public function test_private_hops_in_a_forwarded_chain_are_stepped_over() {
+	/**
+	 * The chain is read from the right, because every hop appends: nginx's
+	 * $proxy_add_x_forwarded_for is literally "$http_x_forwarded_for,
+	 * $remote_addr", so what the visitor sent stays on the left and the address
+	 * the proxy actually saw is added on the right.
+	 */
+	public function test_the_address_a_proxy_observed_is_read_from_the_end_of_the_chain() {
 		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
 		$_SERVER['HTTP_X_FORWARDED_FOR'] = '10.0.0.1, 203.0.113.44';
 
 		$this->set_options( array() );
 		$this->trust_the_usual_headers();
 
-		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'Private hops in a chain are stepped over to the first public address.' );
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'The last entry is the one the nearest proxy wrote.' );
+	}
+
+	/**
+	 * The one that distinguishes the two readings, and the one the old fixture
+	 * could not: with a public address on the left, reading from the left gives
+	 * the visitor whatever identity they asked for.
+	 */
+	public function test_a_visitor_cannot_choose_their_own_address_by_prefilling_the_chain() {
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '192.0.2.123, 203.0.113.44';
+
+		$this->set_options( array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
+
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'The address the proxy saw wins over the one the visitor sent.' );
+		$this->assertNotSame( '192.0.2.123', WP_Ban_IP::address(), 'A banned visitor cannot rename themselves out of the ban.' );
+	}
+
+	/**
+	 * The sharpest form of the same bug: is_excluded() is an exact compare
+	 * against the resolved address, and a hit on the exclude list returns before
+	 * any list is walked -- so a spoofable address bypassed the host, referrer
+	 * and user-agent bans too, none of which are about IPs at all.
+	 */
+	public function test_a_spoofed_chain_cannot_reach_the_exclude_list() {
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.99, 203.0.113.44';
+
+		$this->set_options(
+			array(
+				'ip_header' => 'HTTP_X_FORWARDED_FOR',
+				'lists'     => array( 'exclude_ips' => array( '203.0.113.99' ) ),
+			)
+		);
+
+		$this->assertSame( '203.0.113.44', WP_Ban_IP::address(), 'Naming an excluded address on the left of the chain does not adopt it.' );
+	}
+
+	public function test_a_site_behind_two_proxies_can_say_so() {
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.44, 198.51.100.60, 198.51.100.61';
+
+		$this->set_options( array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
+
+		add_filter( 'wp_ban_trusted_proxy_hops', static fn() => 2 );
+
+		$this->assertSame( '198.51.100.60', WP_Ban_IP::address(), 'Two hops in front means the second entry from the end.' );
+	}
+
+	/**
+	 * A pattern with several stars compiles to `^.*a.*b.*c$`, which backtracks
+	 * quadratically when the subject nearly matches -- and the subjects are the
+	 * user agent and the referrer, which the visitor writes. matched_list()
+	 * walks both lists on every request, not only on banned ones.
+	 */
+	public function test_a_long_subject_is_capped_before_it_reaches_the_matcher() {
+		$pattern = '*bot*crawl*spider*x';
+		$subject = str_repeat( 'bot crawl spider ', 400 ) . 'x';
+
+		$started = microtime( true );
+		$matched = WP_Ban_IP::matches_wildcard( $pattern, $subject );
+		$elapsed = microtime( true ) - $started;
+
+		$this->assertFalse( $matched, 'The pattern does not match, which is the expensive answer to reach.' );
+		$this->assertLessThan( 0.05, $elapsed, 'And reaching it does not cost measurable CPU.' );
+	}
+
+	public function test_an_ordinary_user_agent_still_matches_its_pattern() {
+		$this->assertTrue(
+			WP_Ban_IP::matches_wildcard( '*Googlebot*', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' ),
+			'The cap is far longer than any real user agent, so ordinary matching is untouched.'
+		);
+	}
+
+	public function test_a_chain_shorter_than_the_configured_hops_falls_back() {
+		$_SERVER['REMOTE_ADDR']          = '198.51.100.7';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '203.0.113.44';
+
+		$this->set_options( array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
+
+		add_filter( 'wp_ban_trusted_proxy_hops', static fn() => 3 );
+
+		// Refusing beats guessing: the header did not come through as many
+		// proxies as the site says it has, so nothing in it can be trusted.
+		$this->assertSame( '198.51.100.7', WP_Ban_IP::address(), 'A chain too short for the configured hops falls back to REMOTE_ADDR.' );
 	}
 
 	public function test_an_unusable_chain_falls_back_to_remote_addr() {

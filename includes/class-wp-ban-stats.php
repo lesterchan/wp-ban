@@ -66,11 +66,70 @@ class WP_Ban_Stats {
 
 		if ( '' !== $key ) {
 			$stats['users'][ $key ] = isset( $stats['users'][ $key ] ) ? $stats['users'][ $key ] + 1 : 1;
+			$stats['users']         = self::trim_users( $stats['users'], $key );
 		}
 
 		self::save( $stats );
 
 		return $stats;
+	}
+
+	/**
+	 * Keep the per-address map to a size a wp_options row can carry.
+	 *
+	 * One key per distinct address, with no cap, no pruning and no expiry --
+	 * and the whole array is unserialised, incremented and written back on
+	 * every banned request, so the cost of a request grew with the number of
+	 * addresses ever seen.
+	 *
+	 * Both halves of that were reachable without any authentication. Being
+	 * banned is not an obstacle to arriving here: a visitor opts in by sending
+	 * a banned user agent or referrer, which needs no IP match at all, so any
+	 * site with one entry in either list is exposed. And an attacker with a
+	 * single IPv6 /64 -- standard on most hosting -- has more addresses than
+	 * the row can hold.
+	 *
+	 * The total count is untouched; it is one integer and says what it always
+	 * said. What is bounded is the breakdown, which is a diagnostic: the
+	 * addresses turned away most often are the ones worth looking at, so the
+	 * least frequent are what a full map drops.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param array  $users Address => attempts.
+	 * @param string $keep  Address that must survive, whatever its count.
+	 * @return array
+	 */
+	private static function trim_users( array $users, $keep ) {
+		/**
+		 * Filters how many addresses the banned-attempt breakdown remembers.
+		 *
+		 * The total count is not affected. Zero removes the ceiling, which
+		 * restores the unbounded growth this exists to stop.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param int $max Addresses kept.
+		 */
+		$max = (int) apply_filters( 'wp_ban_max_tracked_addresses', 500 );
+
+		if ( $max <= 0 || count( $users ) <= $max ) {
+			return $users;
+		}
+
+		arsort( $users );
+
+		$kept = array_slice( $users, 0, $max, true );
+
+		// The address being recorded right now stays, even when it is a first
+		// offence and every remembered address has been turned away more often
+		// -- otherwise the row it was just given is dropped in the same breath.
+		if ( ! isset( $kept[ $keep ] ) && isset( $users[ $keep ] ) ) {
+			array_pop( $kept );
+			$kept[ $keep ] = $users[ $keep ];
+		}
+
+		return $kept;
 	}
 
 	/**

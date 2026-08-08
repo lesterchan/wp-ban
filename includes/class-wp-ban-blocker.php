@@ -57,7 +57,19 @@ class WP_Ban_Blocker {
 	 * @return void
 	 */
 	private static function deny( $ip ) {
-		$stats = WP_Ban_Stats::record( $ip );
+		$stats    = WP_Ban_Stats::record( $ip );
+		$template = WP_Ban_Options::message();
+
+		/*
+		 * The lookup only when the template asks for it, for the same reason the
+		 * verdict walk defers it: gethostbyaddr() is a blocking DNS call, and
+		 * whoever owns the address's reverse zone decides how long it takes --
+		 * a zone pointed at a black hole costs the resolver timeout with a PHP
+		 * worker held for the whole of it. Sitting inside the replacement array
+		 * meant PHP evaluated it on every ban whether or not %USER_HOSTNAME%
+		 * appeared, and the shipped message does not use it.
+		 */
+		$hostname = false !== strpos( $template, '%USER_HOSTNAME%' ) ? WP_Ban_IP::hostname( $ip ) : '';
 
 		$message = str_replace(
 			array(
@@ -73,10 +85,10 @@ class WP_Ban_Blocker {
 				get_option( 'siteurl' ),
 				number_format_i18n( isset( $stats['users'][ $ip ] ) ? $stats['users'][ $ip ] : 0 ),
 				$ip,
-				WP_Ban_IP::hostname( $ip ),
+				$hostname,
 				number_format_i18n( $stats['count'] ),
 			),
-			WP_Ban_Options::message()
+			$template
 		);
 
 		/**

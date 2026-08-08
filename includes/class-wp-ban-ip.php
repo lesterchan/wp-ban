@@ -52,7 +52,7 @@ class WP_Ban_IP {
 		$header  = (string) $options['ip_header'];
 
 		if ( '' !== $header && ! empty( $_SERVER[ $header ] ) ) {
-			$candidate = self::first_valid_ip( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ), false );
+			$candidate = self::proxied_ip( sanitize_text_field( wp_unslash( $_SERVER[ $header ] ) ), false );
 
 			if ( '' !== $candidate ) {
 				return self::filter_address( $candidate );
@@ -82,7 +82,7 @@ class WP_Ban_IP {
 					continue;
 				}
 
-				$candidate = self::first_valid_ip( sanitize_text_field( wp_unslash( $_SERVER[ $name ] ) ) );
+				$candidate = self::proxied_ip( sanitize_text_field( wp_unslash( $_SERVER[ $name ] ) ) );
 
 				if ( '' !== $candidate ) {
 					return self::filter_address( $candidate );
@@ -111,12 +111,76 @@ class WP_Ban_IP {
 	}
 
 	/**
+	 * How many appending proxies sit in front of WordPress.
+	 *
+	 * One by default, which is the ordinary shape: nginx with
+	 * `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`, Apache's
+	 * mod_proxy, or a CDN talking straight to the origin. Behind a CDN *and* a
+	 * load balancer it is two, and so on -- each hop appends the address it
+	 * received the request from, so the count is what says which entry in the
+	 * chain the nearest trusted hop actually observed.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @return int
+	 */
+	public static function trusted_proxy_hops() {
+		/**
+		 * Filters how many appending proxies sit in front of WordPress.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param int $hops Number of proxies. One is the common case.
+		 */
+		return max( 1, (int) apply_filters( 'wp_ban_trusted_proxy_hops', 1 ) );
+	}
+
+	/**
+	 * The address a trusted proxy observed, out of a comma separated chain.
+	 *
+	 * Counted from the *right*, and that is the whole of this method.
+	 * X-Forwarded-For is written left to right and every hop **appends**:
+	 * nginx's `$proxy_add_x_forwarded_for` is literally
+	 * "$http_x_forwarded_for, $remote_addr", so whatever the client sent stays
+	 * on the left and the address the proxy actually saw is added on the right.
+	 * Reading the leftmost entry therefore reads the part of the header the
+	 * visitor wrote -- which meant a banned visitor could send any address they
+	 * liked, and, because the exclude list is an exact compare against the same
+	 * value, could send one from *that* and short-circuit every list at once,
+	 * user agent and referrer bans included.
+	 *
+	 * Nothing here is safe on a site with no proxy in front of it. That is what
+	 * the opt-in is for: this is reached only once a site has named a header or
+	 * set the constant.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string $value       Header value.
+	 * @param bool   $public_only Whether to require a public address.
+	 * @return string
+	 */
+	public static function proxied_ip( $value, $public_only = true ) {
+		$flags = $public_only ? FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE : 0;
+		$parts = array_map( 'trim', explode( ',', (string) $value ) );
+		$index = count( $parts ) - self::trusted_proxy_hops();
+
+		// A chain shorter than the configured hop count means the header did not
+		// come through as many proxies as the site says it has. Refusing beats
+		// guessing: the caller falls back to REMOTE_ADDR.
+		if ( $index < 0 || ! isset( $parts[ $index ] ) ) {
+			return '';
+		}
+
+		$candidate = filter_var( $parts[ $index ], FILTER_VALIDATE_IP, $flags );
+
+		return false === $candidate ? '' : $candidate;
+	}
+
+	/**
 	 * The first usable address in a comma separated chain.
 	 *
-	 * X-Forwarded-For is a chain -- "client, proxy1, proxy2" -- and the visitor
-	 * controls the left of it. Using the whole string as an identity means
-	 * appending one more hop yields a different value, so the ban is defeated
-	 * again even with the opt-in working as designed.
+	 * Kept because it is public, and no longer used to decide who a visitor is
+	 * -- see proxied_ip(), which reads the other end of the chain.
 	 *
 	 * @param string $value       Header value.
 	 * @param bool   $public_only Whether to step over private and reserved hops.
@@ -191,6 +255,21 @@ class WP_Ban_IP {
 	/**
 	 * Whether a subject matches a pattern in which * is a wildcard.
 	 *
+	 * The subject is capped first, and that is not tidiness. A pattern with
+	 * three or more stars compiles to `^.*a.*b.*c$`, which backtracks
+	 * quadratically when the subject nearly matches -- and the subjects here are
+	 * the user agent and the referrer, which the visitor writes and which a
+	 * server will happily accept several kilobytes of. Measured: 6.8 KB against
+	 * a four-star pattern exhausts pcre.backtrack_limit after ~0.16s of CPU, and
+	 * matched_list() walks the referrer and user-agent lists on *every* request
+	 * rather than only on banned ones, so it is per pattern per request.
+	 *
+	 * PCRE's own limit means this was bounded rather than unbounded, and a
+	 * pattern needs several stars before it bites -- `*bot*` is `^.*bot.*$` and
+	 * has no blowup at all. It is still an amplifier a visitor controls for
+	 * free. Two kilobytes is far longer than any real user agent and shorter
+	 * than the length at which the arithmetic starts to matter.
+	 *
 	 * @param string $pattern Ban pattern.
 	 * @param string $subject Value to test.
 	 * @return bool
@@ -201,6 +280,19 @@ class WP_Ban_IP {
 
 		if ( '' === $pattern || '' === $subject ) {
 			return false;
+		}
+
+		/**
+		 * Filters the longest subject a ban pattern is matched against.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param int $length Characters. Zero removes the cap.
+		 */
+		$max = (int) apply_filters( 'wp_ban_max_match_length', 2048 );
+
+		if ( $max > 0 && strlen( $subject ) > $max ) {
+			$subject = substr( $subject, 0, $max );
 		}
 
 		// preg_quote() first, so a pattern containing regex metacharacters is
