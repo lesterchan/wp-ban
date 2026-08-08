@@ -81,6 +81,42 @@ The rename is user-facing: 1.69.2 is on wordpress.org with the old names.
   `preg_match_wildcard()`…) is gone with no shims. They were unprefixed and
   declared on every request.
 
+## WP-CLI, and the class the ban decision moved into
+
+`wp ban list|add|remove|check|stats|reset`. **No REST namespace, deliberately.**
+The one `admin-ajax.php` action the plugin registers is `wp_ban_preview`, it has
+no `nopriv` twin, and it serves the settings screen's own preview to an
+administrator who is already on that screen — there is no client for it that is
+not a browser following a link, so a route would be surface invented rather than
+surface earned.
+
+**`WP_Ban_Verdict` exists because the decision and the consequence were one
+walk.** `WP_Ban_Blocker::check()` worked its way down the six lists calling
+`deny()` from the middle of it, and `deny()` records a statistic, prints a whole
+HTML document and exits — so there was no way to ask whether an address would be
+banned without banning it. The blocker now turns a verdict into a ban page and
+`wp ban check` turns the same verdict into a line of output. Keep the lazy
+`gethostbyaddr()` where it is: the host-name list is the only reason to pay for
+a reverse DNS lookup, and hoisting it puts a blocking call on every request to
+every site that leaves that list empty.
+
+**Every subcommand calls `WP_Ban_Options::maybe_upgrade()` first**, because the
+migration is driven from `admin_init` and WP-CLI never gets there —
+`WP_Ban_Settings::init()` is behind an `is_admin()` check. Reading without it
+reports an empty ban list on a site that bans plenty; writing without it is
+worse, because the fold-in would later overwrite the new entry from the legacy
+rows it is absorbing, and nothing would say so.
+
+**`WP_Ban_Options::update_list()` is the programmatic writer and does not run
+`protect_self()`.** That check is about the request doing the saving — it drops
+entries matching the address, host name and user agent of whoever is at the
+keyboard — and a shell has none of those, so it would compare every entry
+against an empty string, drop nothing, and charge a reverse DNS lookup for it.
+The command documents the gap instead of pretending to a protection it cannot
+give. What it does share with the form is the range rule: `split_ranges()` is
+the single implementation, and the screen turns a rejection into an admin notice
+while the command turns it into a warning.
+
 ## Testing the migration, and the ordering that makes it easy
 
 `WP_Ban_Settings::register()` calls `maybe_upgrade()` **before**
@@ -108,4 +144,8 @@ about their last result** — CI is the authority, and this file cannot be.
 `test-migration.php` covers the eight-row fold-in, the un-escaping and the
 `reverse_proxy` → `ip_header` retargeting; `test-ip.php` the range parsing and
 proxy resolution; `test-trust-proxy-constant.php` the constant/filter
-interaction. `helper-exception.php` exists because the ban path calls `exit`.
+interaction; `test-cli.php` every subcommand, against a range, a wildcard and a
+plain address. `helper-exception.php` exists because the ban path calls `exit`,
+and the three `helper-wp-cli*.php` files stand in for WP-CLI, which is not
+loaded in a PHPUnit run — their `error()` and `confirm()` throw, because the
+real ones exit.

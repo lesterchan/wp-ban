@@ -41,6 +41,27 @@ The **Stats** tab is the attempt counters, twenty rows at a time, sortable by ad
 
 All three tabs write the same `wp_ban_options` row, so saving one never disturbs what the other two hold.
 
+### WP-CLI
+```
+wp ban list
+wp ban list ips
+wp ban add ips 192.168.1.100
+wp ban add ips '192.168.1.*'
+wp ban add ips_range 192.168.1.1-192.168.1.255
+wp ban remove ips 192.168.1.100 --yes
+wp ban check 192.168.1.55
+wp ban stats
+wp ban reset --all --yes
+```
+
+The lists are `ips`, `ips_range`, `hosts`, `referers`, `user_agents` and `exclude_ips` — the same six the Settings tab shows, in the same order. Quote any entry containing a `*`, or the shell will try to expand it into filenames.
+
+`wp ban check` runs the same match every visitor's request runs, against an address you name, and reports whether it would be banned and by which list. Ranges and wildcards cover far more than they look like they do, so this is worth running before you add one and after you have. It writes nothing and counts nothing, so an address you check does not appear in `wp ban stats`.
+
+`wp ban remove` and `wp ban reset` ask before they act; pass `--yes` in a script.
+
+Two differences from the screen. The Settings tab refuses to add an entry that matches the administrator saving it, and a shell has no visitor to protect, so the command adds what you tell it to — check first. And the Stats tab shows a host name per row, which the command does not, because that is a DNS lookup per address and the screen only pays it for the rows it is displaying.
+
 ### Filters
 Use `wp_ban_enabled` to skip the ban check for some requests:
 
@@ -136,6 +157,7 @@ Three rows: `wp_ban_options` for the settings, `wp_ban_version` for the version 
 * NEW: IPv6 IP ranges are supported.
 * NEW: A *Header That Contains The IP* setting naming the one header to trust, plus the `WP_BAN_TRUST_PROXY` constant and `wp_ban_trust_proxy` filter.
 * NEW: `wp_ban_capability`, `wp_ban_denied`, `wp_ban_enabled`, `wp_ban_ipaddress`, `wp_ban_protect_self` and `wp_ban_status_code` hooks.
+* NEW: A `wp ban` WP-CLI command: `list`, `add`, `remove`, `check`, `stats` and `reset`. `wp ban check <ip>` reports whether an address would be banned and by which list, which is the quickest way to find out what a wildcard or a range actually covers.
 * NEW: Dropped jQuery; the admin script is vanilla JavaScript.
 * NEW: The ban check no longer runs for WP-CLI or cron.
 * CHANGED: Restructured into `includes/`, with every class prefixed `WP_Ban_`.

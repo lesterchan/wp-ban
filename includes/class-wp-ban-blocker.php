@@ -8,7 +8,13 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Decides whether the current request is banned, and serves the ban page.
+ * Serves the ban page to a request WP_Ban_Verdict has ruled against.
+ *
+ * Which list a request matches is WP_Ban_Verdict's question; what happens to a
+ * request that matches one is this class's, and the two are apart because the
+ * consequence here is terminal -- deny() records a statistic, prints a whole
+ * HTML document and exits, so a caller wanting only the decision could not use
+ * it.
  */
 class WP_Ban_Blocker {
 
@@ -31,55 +37,17 @@ class WP_Ban_Blocker {
 
 		$ip = WP_Ban_IP::address();
 
-		if ( self::is_excluded( $ip ) ) {
-			return;
-		}
+		// The walk down the six lists lives in WP_Ban_Verdict, so that `wp ban
+		// check` can ask the same question without the answer being a ban page.
+		$matched = WP_Ban_Verdict::matched_list(
+			$ip,
+			WP_Ban_IP::referer(),
+			WP_Ban_IP::user_agent()
+		);
 
-		if ( '' !== $ip ) {
-			if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'ips' ), $ip ) ) {
-				self::deny( $ip );
-			}
-
-			if ( WP_Ban_IP::in_any_range( WP_Ban_Options::list_of( 'ips_range' ), $ip ) ) {
-				self::deny( $ip );
-			}
-		}
-
-		$hosts = WP_Ban_Options::list_of( 'hosts' );
-
-		// gethostbyaddr() is a blocking DNS lookup, so it only happens when
-		// there is a host name list to match against.
-		if ( ! empty( $hosts ) && WP_Ban_IP::matches_any( $hosts, WP_Ban_IP::hostname( $ip ) ) ) {
+		if ( '' !== $matched ) {
 			self::deny( $ip );
 		}
-
-		if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'referers' ), WP_Ban_IP::referer() ) ) {
-			self::deny( $ip );
-		}
-
-		if ( WP_Ban_IP::matches_any( WP_Ban_Options::list_of( 'user_agents' ), WP_Ban_IP::user_agent() ) ) {
-			self::deny( $ip );
-		}
-	}
-
-	/**
-	 * Whether this address is on the exclude list.
-	 *
-	 * @param string $ip Visitor address.
-	 * @return bool
-	 */
-	private static function is_excluded( $ip ) {
-		if ( '' === $ip ) {
-			return false;
-		}
-
-		foreach ( WP_Ban_Options::list_of( 'exclude_ips' ) as $excluded ) {
-			if ( $ip === $excluded ) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	/**

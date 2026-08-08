@@ -325,20 +325,46 @@ class WP_Ban_Options {
 	}
 
 	/**
+	 * Sort range entries into the ones that parse and the ones that do not.
+	 *
+	 * The rule and the complaint are separate on purpose. Before 2.0.0 a range
+	 * whose bounds did not parse matched every visitor on earth, so refusing to
+	 * store one is the fix and every writer has to apply it -- but the settings
+	 * screen reports a rejection as an admin notice and the command reports it
+	 * as a warning on stderr, and neither can use the other's. This is the rule;
+	 * the two callers below and in WP_Ban_Command are the reporting.
+	 *
+	 * @param string[] $ranges Range entries.
+	 * @return array{valid: string[], invalid: string[]}
+	 */
+	public static function split_ranges( $ranges ) {
+		$out = array(
+			'valid'   => array(),
+			'invalid' => array(),
+		);
+
+		foreach ( (array) $ranges as $range ) {
+			if ( WP_Ban_IP::parse_range( $range ) ) {
+				$out['valid'][] = $range;
+				continue;
+			}
+
+			$out['invalid'][] = $range;
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Drop range entries that are not two valid addresses of the same family.
 	 *
 	 * @param string[] $ranges Range entries.
 	 * @return string[]
 	 */
 	private static function filter_ranges( $ranges ) {
-		$out = array();
+		$split = self::split_ranges( $ranges );
 
-		foreach ( $ranges as $range ) {
-			if ( WP_Ban_IP::parse_range( $range ) ) {
-				$out[] = $range;
-				continue;
-			}
-
+		foreach ( $split['invalid'] as $range ) {
 			add_settings_error(
 				self::OPTION,
 				'wp_ban_bad_range',
@@ -351,7 +377,52 @@ class WP_Ban_Options {
 			);
 		}
 
-		return $out;
+		return $split['valid'];
+	}
+
+	/**
+	 * Replace one ban list and store the result.
+	 *
+	 * The settings form does not come through here: it posts every list the tab
+	 * is showing and the Settings API hands the lot to sanitize(). This is the
+	 * writer for a caller holding one list and one change, which as of this
+	 * release means WP_Ban_Command and nothing else. It applies the same two
+	 * rules the form applies to that list -- entries are normalised by
+	 * lines_to_list(), and a range that does not parse is dropped -- so the two
+	 * paths cannot disagree about what a stored entry looks like.
+	 *
+	 * What it deliberately does not do is run protect_self(). That check is
+	 * about the request doing the saving: it drops entries matching the address,
+	 * host name and user agent of whoever is at the keyboard. A shell has none
+	 * of those -- there is no REMOTE_ADDR for WP_Ban_IP::address() to read -- so
+	 * it would compare every entry against an empty string, drop nothing, and
+	 * charge a reverse DNS lookup for the privilege. The command says so in its
+	 * own documentation rather than pretending to a protection it cannot give.
+	 *
+	 * @param string   $name    List key.
+	 * @param string[] $entries Entries to store.
+	 * @return string[] The entries as they were stored.
+	 */
+	public static function update_list( $name, $entries ) {
+		$options = self::get();
+
+		if ( ! isset( $options['lists'][ $name ] ) ) {
+			return array();
+		}
+
+		$clean = self::lines_to_list( $entries );
+
+		if ( 'ips_range' === $name ) {
+			$split = self::split_ranges( $clean );
+			$clean = $split['valid'];
+		}
+
+		$options['lists'][ $name ] = $clean;
+
+		self::write( $options );
+		self::flush_cache();
+
+		return $clean;
 	}
 
 	/**

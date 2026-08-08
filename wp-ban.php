@@ -73,6 +73,7 @@ define( 'WP_BAN_URL', plugin_dir_url( __FILE__ ) );
 require_once WP_BAN_DIR . 'includes/class-wp-ban-options.php';
 require_once WP_BAN_DIR . 'includes/class-wp-ban-ip.php';
 require_once WP_BAN_DIR . 'includes/class-wp-ban-stats.php';
+require_once WP_BAN_DIR . 'includes/class-wp-ban-verdict.php';
 require_once WP_BAN_DIR . 'includes/class-wp-ban-blocker.php';
 require_once WP_BAN_DIR . 'includes/class-wp-ban-settings.php';
 require_once WP_BAN_DIR . 'includes/class-wp-ban.php';
