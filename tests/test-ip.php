@@ -269,6 +269,48 @@ class WP_Ban_IP_Test extends WP_Ban_TestCase {
 		$this->assertLessThan( 0.05, $elapsed, 'And reaching it does not cost measurable CPU.' );
 	}
 
+	/**
+	 * filter_var() validates and hands the string back as it arrived, so one
+	 * address had several spellings and the lists compare strings. Where the
+	 * visitor picks the spelling -- any site that has named a proxy header --
+	 * that is a ban evasion; where they do not, it is a silent miss, because a
+	 * dual-stack server reporting REMOTE_ADDR as ::ffff:1.2.3.4 never matched
+	 * the IPv4 entry its owner typed.
+	 *
+	 * @dataProvider data_equivalent_addresses
+	 *
+	 * @param string $written    How the address was written.
+	 * @param string $canonical  The one spelling everything compares against.
+	 */
+	public function test_an_address_has_one_spelling( $written, $canonical ) {
+		$this->assertSame( $canonical, WP_Ban_IP::valid_ip( $written ), $written . ' reduces to its canonical form.' );
+	}
+
+	/**
+	 * Spellings of one address, and what they reduce to.
+	 *
+	 * @return array
+	 */
+	public function data_equivalent_addresses() {
+		return array(
+			'expanded IPv6'  => array( '2001:0db8:0000:0000:0000:0000:0000:0001', '2001:db8::1' ),
+			'uppercase IPv6' => array( '2001:DB8::1', '2001:db8::1' ),
+			'leading zeroes' => array( '0::1', '::1' ),
+			'IPv4-mapped'    => array( '::ffff:203.0.113.5', '203.0.113.5' ),
+			'plain IPv4'     => array( '203.0.113.5', '203.0.113.5' ),
+		);
+	}
+
+	public function test_an_ipv4_mapped_address_matches_an_ipv4_ban() {
+		$_SERVER['REMOTE_ADDR']          = '::ffff:203.0.113.5';
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = '';
+
+		$this->set_options( array( 'lists' => array( 'ips' => array( '203.0.113.5' ) ) ) );
+
+		$this->assertSame( '203.0.113.5', WP_Ban_IP::address(), 'The mapped form is the IPv4 address it stands for.' );
+		$this->assertNotSame( '', WP_Ban_Verdict::matched_list( WP_Ban_IP::address(), '', '' ), 'So the ban the owner typed matches it.' );
+	}
+
 	public function test_an_ordinary_user_agent_still_matches_its_pattern() {
 		$this->assertTrue(
 			WP_Ban_IP::matches_wildcard( '*Googlebot*', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' ),

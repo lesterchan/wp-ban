@@ -316,7 +316,7 @@ class WP_Ban_Options {
 		if ( isset( $input['message'] ) ) {
 			$message = (string) $input['message'];
 
-			$clean['message'] = '' === trim( $message ) ? self::default_message() : wp_kses( $message, self::allowed_html() );
+			$clean['message'] = '' === trim( $message ) ? self::default_message() : self::sanitize_message( $message );
 		}
 
 		self::flush_cache();
@@ -581,6 +581,51 @@ class WP_Ban_Options {
 	 *
 	 * @return array
 	 */
+	/**
+	 * Filter a submitted ban message.
+	 *
+	 * kses does the markup, and then the CSS -- which kses has no opinion about
+	 * at all. It filters `style` *attributes* through safecss_filter_attr(), but
+	 * the body of a `<style>` element passes through as text, and this allow
+	 * list has to permit that element because the shipped message centres itself
+	 * with one.
+	 *
+	 * That matters on multisite, where a site administrator holds
+	 * `manage_options` and deliberately does not hold `unfiltered_html`. Without
+	 * this they could store `@import url(//somewhere-else/)` and a full-viewport
+	 * overlay, and have every banned visitor fetch it -- which is the sort of
+	 * thing `unfiltered_html` exists to keep away from them. Somebody who does
+	 * hold it can already write arbitrary markup anywhere, so nothing is taken
+	 * from them here.
+	 *
+	 * The rules are left alone; it is only the two ways CSS reaches the network
+	 * that go. Layout, colour and typography all still work, which is what the
+	 * element is in the default message for.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string $message Submitted message.
+	 * @return string
+	 */
+	public static function sanitize_message( $message ) {
+		$message = wp_kses( $message, self::allowed_html() );
+
+		if ( current_user_can( 'unfiltered_html' ) ) {
+			return $message;
+		}
+
+		return (string) preg_replace_callback(
+			'#(<style\b[^>]*>)(.*?)(</style>)#is',
+			static function ( $matches ) {
+				$css = preg_replace( '#@import\b[^;}]*;?#i', '', $matches[2] );
+				$css = preg_replace( '#\burl\s*\([^)]*\)#i', 'none', $css );
+
+				return $matches[1] . $css . $matches[3];
+			},
+			$message
+		);
+	}
+
 	public static function allowed_html() {
 		$allowed = wp_kses_allowed_html( 'post' );
 

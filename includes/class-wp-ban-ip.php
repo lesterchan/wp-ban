@@ -173,7 +173,7 @@ class WP_Ban_IP {
 
 		$candidate = filter_var( $parts[ $index ], FILTER_VALIDATE_IP, $flags );
 
-		return false === $candidate ? '' : $candidate;
+		return false === $candidate ? '' : self::canonical_ip( $candidate );
 	}
 
 	/**
@@ -193,7 +193,7 @@ class WP_Ban_IP {
 			$candidate = filter_var( trim( $candidate ), FILTER_VALIDATE_IP, $flags );
 
 			if ( false !== $candidate ) {
-				return $candidate;
+				return self::canonical_ip( $candidate );
 			}
 		}
 
@@ -209,7 +209,50 @@ class WP_Ban_IP {
 	public static function valid_ip( $ip ) {
 		$ip = filter_var( trim( (string) $ip ), FILTER_VALIDATE_IP );
 
-		return false === $ip ? '' : $ip;
+		return false === $ip ? '' : self::canonical_ip( $ip );
+	}
+
+	/**
+	 * Reduce an address to the one spelling everything else compares against.
+	 *
+	 * filter_var() validates and hands the string back exactly as it arrived, so
+	 * the same address had several spellings and the lists compare strings.
+	 * `2001:0db8:0000:0000:0000:0000:0000:0001`, `2001:DB8::1` and `2001:db8::1`
+	 * are one address and were three ban entries; and an IPv4-mapped
+	 * `::ffff:203.0.113.5` matched neither an IPv4 entry nor an IPv4 range,
+	 * because in_range() refuses to compare a 16-byte address against 4-byte
+	 * bounds.
+	 *
+	 * That is a ban evasion wherever the visitor picks the spelling -- which is
+	 * any site that has named a proxy header -- and a silent miss where they do
+	 * not: a dual-stack server reporting REMOTE_ADDR as `::ffff:1.2.3.4` never
+	 * matched the IPv4 entry its owner typed.
+	 *
+	 * inet_pton() then inet_ntop() is the round trip that settles it, and the
+	 * mapped prefix is unwrapped so the address is stored and matched as the
+	 * IPv4 one it is.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string $ip A validated address.
+	 * @return string
+	 */
+	public static function canonical_ip( $ip ) {
+		$packed = @inet_pton( $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- The caller has already validated the address; the silence is for a host built without IPv6 support, where this returns false and the address is used as it came.
+
+		if ( false === $packed ) {
+			return $ip;
+		}
+
+		// An IPv4-mapped IPv6 address is an IPv4 address. 10 zero bytes, two
+		// 0xff bytes, then the four that matter.
+		if ( 16 === strlen( $packed ) && 0 === strncmp( $packed, "\0\0\0\0\0\0\0\0\0\0\xff\xff", 12 ) ) {
+			$packed = substr( $packed, 12 );
+		}
+
+		$canonical = @inet_ntop( $packed ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- As above.
+
+		return false === $canonical ? $ip : $canonical;
 	}
 
 	/**

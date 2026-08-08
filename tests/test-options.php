@@ -208,6 +208,62 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		$this->assertStringContainsString( 'wp-ban-container', $clean['message'], 'While the markup it is meant to carry survives.' );
 	}
 
+	/**
+	 * A `style` *attribute* goes through safecss_filter_attr(); kses has no
+	 * opinion at all about the body of a `<style>` element -- which this allow
+	 * list has to permit, because the shipped message centres itself with one.
+	 * On multisite a site administrator holds manage_options and deliberately
+	 * does not hold unfiltered_html, so without this they could make every
+	 * banned visitor fetch a stylesheet of their choosing.
+	 */
+	public function test_css_cannot_reach_the_network_for_somebody_without_unfiltered_html() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		/*
+		 * Denied through map_meta_cap rather than by removing it from the user,
+		 * because the capability comes from the role and a per-user removal does
+		 * not reach it. This is also exactly how multisite denies it: core's own
+		 * map_meta_cap() resolves unfiltered_html to do_not_allow there for
+		 * anyone who is not a super admin, which is the install this test is
+		 * about.
+		 */
+		add_filter(
+			'map_meta_cap',
+			static function ( $caps, $cap ) {
+				return 'unfiltered_html' === $cap ? array( 'do_not_allow' ) : $caps;
+			},
+			10,
+			2
+		);
+
+		$this->assertFalse( current_user_can( 'unfiltered_html' ), 'The fixture is somebody who may not write raw markup.' );
+
+		$clean = WP_Ban_Options::sanitize(
+			array(
+				'message' => '<html><head><style>@import url(//evil.example/x.css); body { background: url("//evil.example/p.gif"); color: red; }</style></head><body><p>Nope</p></body></html>',
+			)
+		);
+
+		$this->assertStringNotContainsString( '@import', $clean['message'], 'An @import cannot be stored.' );
+		$this->assertStringNotContainsString( 'evil.example', $clean['message'], 'Nor any other way of naming somewhere else.' );
+		$this->assertStringContainsString( 'color: red', $clean['message'], 'While ordinary CSS is left exactly as written.' );
+		$this->assertStringContainsString( '<style>', $clean['message'], 'And the element itself survives, because the shipped message uses one.' );
+	}
+
+	public function test_somebody_with_unfiltered_html_keeps_their_css() {
+		wp_set_current_user( $this->create_admin() );
+
+		if ( ! current_user_can( 'unfiltered_html' ) ) {
+			$this->markTestSkipped( 'This install does not grant unfiltered_html to the fixture.' );
+		}
+
+		$clean = WP_Ban_Options::sanitize(
+			array( 'message' => '<html><head><style>body { background: url("/local.gif"); }</style></head><body><p>Nope</p></body></html>' )
+		);
+
+		$this->assertStringContainsString( 'url("/local.gif")', $clean['message'], 'Somebody who may write arbitrary markup loses nothing here.' );
+	}
+
 	public function test_the_message_may_be_a_whole_html_document() {
 		$clean = WP_Ban_Options::sanitize( array( 'message' => WP_Ban_Options::default_message() ) );
 
