@@ -267,7 +267,15 @@ class WP_Ban_CLI_Test extends WP_Ban_TestCase {
 	public function test_add_refuses_a_malformed_range_and_says_so() {
 		$this->set_options( array() );
 
-		$this->run_command( 'add', array( 'ips_range', 'garbage-203.0.113.255' ) );
+		// Warned about, then stopped: the only entry given was unusable, so
+		// there is nothing left to add and the command exits non-zero rather
+		// than reporting a success that added nothing.
+		try {
+			$this->run_command( 'add', array( 'ips_range', 'garbage-203.0.113.255' ) );
+			$this->fail( 'A call whose only entry is malformed stops rather than succeeding.' );
+		} catch ( RuntimeException $e ) {
+			unset( $e );
+		}
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips_range' ), 'The malformed range was not stored.' );
 		$this->assertNotEmpty( WP_CLI::$warnings, 'And the command warned about the entry it dropped.' );
@@ -281,7 +289,12 @@ class WP_Ban_CLI_Test extends WP_Ban_TestCase {
 	public function test_add_refuses_a_range_that_mixes_address_families() {
 		$this->set_options( array() );
 
-		$this->run_command( 'add', array( 'ips_range', '192.168.1.1-2001:db8::ffff' ) );
+		try {
+			$this->run_command( 'add', array( 'ips_range', '192.168.1.1-2001:db8::ffff' ) );
+			$this->fail( 'A call whose only entry is malformed stops rather than succeeding.' );
+		} catch ( RuntimeException $e ) {
+			unset( $e );
+		}
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips_range' ), 'A range cannot have one end of each kind.' );
 		$this->assertNotEmpty( WP_CLI::$warnings, 'And that is reported rather than stored quietly.' );
