@@ -217,7 +217,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 	 * banned visitor fetch a stylesheet of their choosing.
 	 */
 	public function test_css_cannot_reach_the_network_for_somebody_without_unfiltered_html() {
-		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+		wp_set_current_user( $this->create_admin() );
 
 		/*
 		 * Denied through map_meta_cap rather than by removing it from the user,
