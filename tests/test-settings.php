@@ -138,6 +138,27 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 	}
 
 	/**
+	 * The token list is a hint about the message field, so it follows the field.
+	 *
+	 * It lived in the section intro, a whole textarea away from the control it
+	 * describes, which was one of four arrangements across the five plugins
+	 * that list template tokens. The rule is WordPress's own: a field hint is a
+	 * description paragraph directly after the field it describes.
+	 */
+	public function test_the_token_list_follows_the_message_field() {
+		$html = $this->render( 'templates' );
+
+		$field = strpos( $html, '</textarea>' );
+		$hint  = strpos( $html, 'Allowed variables:' );
+
+		$this->assertNotFalse( $field, 'the message textarea rendered' );
+		$this->assertNotFalse( $hint, 'the tokens are listed' );
+		$this->assertGreaterThan( $field, $hint, 'the hint follows the textarea rather than sitting in the section copy above it' );
+		$this->assertStringContainsString( 'class="description"', substr( $html, $field, $hint - $field + 40 ), 'and in a description paragraph' );
+		$this->assertStringContainsString( '<code>%USER_IP%</code>', $html, 'with the tokens as literal code spans' );
+	}
+
+	/**
 	 * The three tabs, named exactly as the standard names them.
 	 *
 	 * "Ban Settings" and "Ban Stats" would repeat the heading above them, which

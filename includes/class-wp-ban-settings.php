@@ -519,15 +519,24 @@ class WP_Ban_Settings {
 		);
 
 		echo '<p><code>' . esc_html( '<div id="wp-ban-container"></div>' ) . '</code></p>';
+	}
 
-		echo '<p>' . esc_html__( 'Allowed variables:', 'wp-ban' ) . '</p>';
-
-		/*
-		 * These are literal tokens, not printf placeholders. They stay out of
-		 * translatable strings on purpose: phpcbf reads a % inside a
-		 * translatable string as a placeholder and renumbers it, which would
-		 * turn %SITE_NAME% into %1$SITE_NAME% on the screen.
-		 */
+	/**
+	 * The tokens the banned message accepts, listed under the field.
+	 *
+	 * Under the textarea rather than in the section copy above it: a hint belongs
+	 * with the control it describes, which is where WordPress puts one. Listing
+	 * them in the section intro put them a screen away from the field they apply
+	 * to, and made this the only one of five plugins that did it that way.
+	 *
+	 * These are literal tokens, not printf placeholders. They stay out of
+	 * translatable strings on purpose: phpcbf reads a % inside a translatable
+	 * string as a placeholder and renumbers it, which would turn %SITE_NAME% into
+	 * %1$SITE_NAME% on the screen.
+	 *
+	 * @return void
+	 */
+	private static function token_list() {
 		$tokens = array(
 			'%SITE_NAME%',
 			'%SITE_URL%',
@@ -537,7 +546,7 @@ class WP_Ban_Settings {
 			'%TOTAL_ATTEMPTS_COUNT%',
 		);
 
-		echo '<p>';
+		echo '<p class="description">' . esc_html__( 'Allowed variables:', 'wp-ban' ) . ' ';
 
 		foreach ( $tokens as $token ) {
 			echo '<code>' . esc_html( $token ) . '</code> ';
@@ -557,6 +566,8 @@ class WP_Ban_Settings {
 			esc_attr( WP_Ban_Options::OPTION ),
 			esc_textarea( WP_Ban_Options::message() )
 		);
+
+		self::token_list();
 
 		// The two buttons are found by their data-wp-ban-action, not by id: the
 		// script binds behaviour to the attribute, so the ids stay free to be
