@@ -7,10 +7,10 @@
 		"lint:js": "eslint .",
 		"lint:js:fix": "eslint . --fix",
 		"test": "bin/test.sh",
-		"test:e2e": "bin/test-e2e.sh",
-		"test:e2e:headed": "bin/test-e2e.sh --headed",
 		"test:js": "vitest run",
-		"test:js:watch": "vitest"
+		"test:js:watch": "vitest",
+		"test:e2e": "bin/test-e2e.sh",
+		"test:e2e:headed": "bin/test-e2e.sh --headed"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.62.1",
