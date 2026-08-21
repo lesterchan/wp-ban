@@ -110,7 +110,7 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 	 * @param array $options Partial options.
 	 * @return void
 	 */
-	protected function set_options( $options ) {
+	protected function set_options( array $options = array() ) {
 		$merged = WP_Ban_Options::defaults();
 
 		if ( isset( $options['lists'] ) ) {
