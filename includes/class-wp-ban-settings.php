@@ -116,7 +116,7 @@ class WP_Ban_Settings {
 	private static $hook_suffix = '';
 
 	/**
-	 * Hook the screen up.
+	 * Hook registration.
 	 *
 	 * @return void
 	 */
@@ -219,11 +219,11 @@ class WP_Ban_Settings {
 	 */
 	public static function capability( $context ) {
 		/**
-		 * Filters the capability required to reach WP-Ban's admin surface.
+		 * Filters the capability required to reach a WP-Ban screen.
 		 *
 		 * @since 2.0.0
 		 *
-		 * @param string $capability Capability name.
+		 * @param string $capability The required capability.
 		 * @param string $context    One of 'screen', 'stats' or 'preview'.
 		 */
 		return (string) apply_filters( 'wp_ban_capability', self::CAPABILITY, $context );
