@@ -128,7 +128,7 @@ takes it proves less than it looks:
   the settings row and a `default` — where one is passed — makes an absent row
   read back as the defaults rather than `false`. A migration that reads the row
   bare then skips its fold-in while deleting the legacy rows anyway.
-* `test-migration.php::migrate_on_admin_init()` therefore registers first and
+* `test-upgrade.php::migrate_on_admin_init()` therefore registers first and
   seeds the legacy rows afterwards, which puts the fold-in on the far side of
   both `sanitize_option_` and `default_option_`.
 * Read the row **raw** when the question is "was it written": the options
@@ -141,9 +141,9 @@ takes it proves less than it looks:
 `bin/test-e2e.sh` the Playwright suite. **Run them rather than trusting a note
 about their last result** — CI is the authority, and this file cannot be.
 
-`test-migration.php` covers the eight-row fold-in, the un-escaping and the
+`test-upgrade.php` covers the eight-row fold-in, the un-escaping and the
 `reverse_proxy` → `ip_header` retargeting; `test-ip.php` the range parsing and
-proxy resolution; `test-trust-proxy-constant.php` the constant/filter
+proxy resolution; `test-trust-proxy.php` the constant/filter
 interaction; `test-cli.php` every subcommand, against a range, a wildcard and a
 plain address. `helper-exception.php` exists because the ban path calls `exit`,
 and the three `helper-wp-cli*.php` files stand in for WP-CLI, which is not

@@ -8,7 +8,7 @@
 /**
  * @covers WP_Ban_Options
  */
-class WP_Ban_Migration_Test extends WP_Ban_TestCase {
+class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 
 	/**
 	 * Put a pre-2.0.0 install in place.
