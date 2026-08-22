@@ -38,14 +38,14 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 
 		delete_option( WP_Ban_Options::VERSION );
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 	}
 
 	public function test_the_lists_move_into_the_consolidated_row() {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'The IP list moves into the consolidated row.' );
 		$this->assertSame( array( '203.0.113.10-203.0.113.20' ), WP_Ban_Options::list_of( 'ips_range' ), 'And the range list.' );
@@ -62,7 +62,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame(
 			array( 'http://*.spam.test/path?a=1&b=2' ),
@@ -78,7 +78,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertTrue(
 			WP_Ban_IP::matches_any(
@@ -93,7 +93,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( '<div id="wp-ban-container"><p>It\'s you.</p></div>', WP_Ban_Options::message(), 'The message is unslashed exactly once.' );
 		$this->assertStringNotContainsString( '\\', WP_Ban_Options::message(), 'Leaving no backslash behind, which a second pass would.' );
@@ -122,7 +122,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		update_option( 'banned_options', $banned_options );
 
 		WP_Ban_Settings::register();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 	}
 
 	/**
@@ -224,7 +224,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertNotFalse( get_option( WP_Ban_Options::OPTION, false ), 'the settings row was not created' );
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'The prefixed rows hold the migrated lists.' );
@@ -274,12 +274,12 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$after_first = WP_Ban_Options::get();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( $after_first, WP_Ban_Options::get(), 'Running the migration twice leaves the settings as they were.' );
 		$this->assertSame( array( 'http://*.spam.test/path?a=1&b=2' ), WP_Ban_Options::list_of( 'referers' ), 'Including the entries whose entities were decoded, which a second decode would mangle.' );
@@ -293,7 +293,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		update_option( 'banned_ips', array( 'should-not-win' ) );
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array( '1.2.3.4' ), WP_Ban_Options::list_of( 'ips' ), 'An install already migrated is not touched again.' );
 	}
@@ -320,10 +320,10 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		// A row that has lost its list group entirely, as a partial write would
 		// leave it.
 		update_option( WP_Ban_Options::OPTION, array( 'ip_header' => 'HTTP_X_FORWARDED_FOR' ) );
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$stored = get_option( WP_Ban_Options::OPTION );
 
@@ -336,7 +336,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		delete_option( WP_Ban_Options::VERSION );
 
 		WP_Ban_Options::maybe_upgrade();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'A fresh install has empty lists rather than reading a legacy row that is not there.' );
 		$this->assertNotEmpty( WP_Ban_Options::message(), 'A fresh install still gets the default message, with no legacy row to read.' );
@@ -382,7 +382,7 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->seed_legacy();
 
 		WP_Ban_Settings::register();
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'The admin_init callback runs the migration.' );
 		$this->assertSame( WP_BAN_DB_VERSION, WP_Ban_Options::markers()['db'], 'And stamps the marker, so it runs once.' );

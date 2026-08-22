@@ -12,7 +12,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 	public function test_a_missing_row_yields_the_defaults() {
 		delete_option( WP_Ban_Options::OPTION );
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'With no row stored the lists are empty.' );
 		// Blank, which is what says "no proxy" now that the checkbox is gone.
@@ -22,7 +22,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 	public function test_a_corrupt_row_falls_back_to_the_defaults() {
 		update_option( WP_Ban_Options::OPTION, 'not an array at all' );
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'A corrupt row falls back to the defaults rather than propagating.' );
 		$this->assertNotEmpty( WP_Ban_Options::message(), 'A corrupt row falls back to the shipped defaults rather than to nothing.' );
@@ -30,7 +30,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 
 	public function test_a_partially_shaped_row_is_normalised() {
 		update_option( WP_Ban_Options::OPTION, array( 'lists' => array( 'ips' => 'not a list' ) ) );
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'ips' ), 'A row missing keys is normalised, so a read never returns null.' );
 		$this->assertSame( array(), WP_Ban_Options::list_of( 'hosts' ), 'For every list, not only the one that was present.' );
@@ -76,7 +76,7 @@ class WP_Ban_Options_Test extends WP_Ban_TestCase {
 		$options['ip_header'] = '';
 
 		update_option( WP_Ban_Options::OPTION, $options );
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array( '1.1.1.1', '2.2.2.2' ), WP_Ban_Options::list_of( 'ips' ), 'Writing back what get() returned keeps the lists, so a read-modify-write is safe.' );
 	}

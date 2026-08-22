@@ -202,7 +202,7 @@ class WP_Ban_Options {
 	 *
 	 * @return void
 	 */
-	public static function flush_cache() {
+	public static function flush() {
 		self::$cache = null;
 	}
 
@@ -319,7 +319,7 @@ class WP_Ban_Options {
 			$clean['message'] = '' === trim( $message ) ? self::default_message() : self::sanitize_message( $message );
 		}
 
-		self::flush_cache();
+		self::flush();
 
 		return $clean;
 	}
@@ -420,7 +420,7 @@ class WP_Ban_Options {
 		$options['lists'][ $name ] = $clean;
 
 		self::write( $options );
-		self::flush_cache();
+		self::flush();
 
 		return $clean;
 	}
@@ -664,9 +664,9 @@ class WP_Ban_Options {
 	 * exist": an install that has already upgraded has no old rows, and would
 	 * otherwise have defaults written straight over its settings.
 	 *
-	 * Driven from admin_init as well as activation, because activation does not
-	 * fire when a plugin is updated -- which is how the overwhelming majority
-	 * of installs will arrive here.
+	 * Driven from admin_init as well as activation. Activation does not fire
+	 * on a plugin update, which is the single most common reason a migration
+	 * never runs.
 	 *
 	 * @return void
 	 */
@@ -703,7 +703,7 @@ class WP_Ban_Options {
 			true
 		);
 
-		self::flush_cache();
+		self::flush();
 	}
 
 	/**

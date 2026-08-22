@@ -69,7 +69,7 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 		delete_option( WP_Ban_Options::LEGACY_DB_VERSION );
 		delete_option( WP_Ban_Stats::LEGACY_OPTION );
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 	}
 
 	/**
@@ -79,7 +79,7 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 		remove_filter( 'wp_die_handler', array( __CLASS__, 'throwing_wp_die_handler' ) );
 		remove_filter( 'wp_die_ajax_handler', array( __CLASS__, 'throwing_wp_die_handler' ) );
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		parent::tear_down();
 	}
@@ -132,7 +132,7 @@ abstract class WP_Ban_TestCase extends WP_UnitTestCase {
 			)
 		);
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 	}
 
 	/**

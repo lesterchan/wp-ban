@@ -521,7 +521,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			)
 		);
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( array( $referer ), WP_Ban_Options::list_of( 'referers' ), 'A real form post reaches the registered sanitiser, referrers and all.' );
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'And the IP list.' );
@@ -553,7 +553,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			)
 		);
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( $before, WP_Ban_Options::get(), 'Saving the same form twice changes nothing.' );
 	}
@@ -599,7 +599,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			)
 		);
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertSame( $message, WP_Ban_Options::message(), 'saving the Settings tab destroyed the message template' );
 		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ), 'Saving the templates tab leaves the settings tab lists alone.' );
@@ -611,7 +611,7 @@ class WP_Ban_Settings_Test extends WP_Ban_TestCase {
 			array( 'message' => '<div id="wp-ban-container"><p>Rewritten</p></div>' )
 		);
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		$this->assertStringContainsString( 'Rewritten', WP_Ban_Options::message(), 'While the message it did post is actually written.' );
 		$this->assertSame( array( '203.0.113.5' ), WP_Ban_Options::list_of( 'ips' ), 'saving the Templates tab emptied a ban list' );

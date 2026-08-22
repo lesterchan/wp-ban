@@ -58,7 +58,7 @@ class WP_Ban_Multisite_Test extends WP_Ban_TestCase {
 			restore_current_blog();
 		}
 
-		WP_Ban_Options::flush_cache();
+		WP_Ban_Options::flush();
 
 		return $site_ids;
 	}

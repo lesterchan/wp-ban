@@ -20,7 +20,7 @@ class WP_Ban {
 	private static $instance = null;
 
 	/**
-	 * Retrieve, creating on first call.
+	 * Get the instance, creating it on first call.
 	 *
 	 * @return WP_Ban
 	 */
@@ -34,11 +34,9 @@ class WP_Ban {
 
 	/**
 	 * Register hooks.
-	 *
-	 * The activation hook is registered from the constructor, which runs at
-	 * file-load time -- where WordPress requires it to be.
 	 */
 	private function __construct() {
+		// Must be registered at file-load time, which is when this runs.
 		register_activation_hook( WP_BAN_MAIN_FILE, array( __CLASS__, 'activate' ) );
 
 		add_action( 'init', array( __CLASS__, 'check' ) );
@@ -89,19 +87,12 @@ class WP_Ban {
 	/**
 	 * Set the plugin up on activation.
 	 *
-	 * @param bool $network_wide Whether the plugin is being activated network wide.
+	 * @param bool $network_wide Whether the plugin is being activated network-wide.
 	 * @return void
 	 */
-	public static function activate( $network_wide ) {
+	public static function activate( $network_wide = false ) {
 		if ( is_multisite() && $network_wide ) {
-			/*
-			 * wp_get_sites() has been deprecated since WordPress 4.6 and is
-			 * itself capped at 100 sites, so this used to skip them silently.
-			 * 'number' => 0 lifts
-			 * WP_Site_Query's default cap of 100, which would otherwise leave
-			 * every site past the hundredth unconfigured while still reporting
-			 * a successful activation.
-			 */
+			// 'number' => 0 lifts WP_Site_Query's default cap of 100, which would otherwise skip every site past the hundredth while reporting success.
 			$site_ids = get_sites(
 				array(
 					'fields' => 'ids',
@@ -110,11 +101,10 @@ class WP_Ban {
 			);
 
 			foreach ( $site_ids as $site_id ) {
-				// switch_to_blog() pushes onto a stack, so the restore belongs
-				// inside the loop -- one restore at the end unwinds it by one.
+				// Inside the loop: switch_to_blog() pushes onto a stack, so restoring once after the loop unwinds it by exactly one.
 				switch_to_blog( (int) $site_id );
 
-				self::activate_site();
+				self::install();
 
 				restore_current_blog();
 			}
@@ -122,7 +112,7 @@ class WP_Ban {
 			return;
 		}
 
-		self::activate_site();
+		self::install();
 	}
 
 	/**
@@ -130,7 +120,7 @@ class WP_Ban {
 	 *
 	 * @return void
 	 */
-	private static function activate_site() {
+	private static function install() {
 		// maybe_upgrade() creates the settings row from the defaults when there
 		// is nothing legacy to fold in, so a fresh install needs nothing else.
 		WP_Ban_Options::maybe_upgrade();
