@@ -28,13 +28,6 @@ defined( 'ABSPATH' ) || exit;
 class WP_Ban_Settings {
 
 	/**
-	 * Settings page slug.
-	 *
-	 * @var string
-	 */
-	const PAGE = 'wp-ban';
-
-	/**
 	 * Settings group passed to register_setting()/settings_fields().
 	 *
 	 * The group is spelled the same as the row it writes, so there is one
@@ -43,6 +36,13 @@ class WP_Ban_Settings {
 	 * @var string
 	 */
 	const GROUP = 'wp_ban_options';
+
+	/**
+	 * Settings page slug.
+	 *
+	 * @var string
+	 */
+	const PAGE = 'wp-ban';
 
 	/**
 	 * Capability required to reach this plugin's admin surface.
