@@ -41,6 +41,11 @@ class WP_Ban {
 
 		add_action( 'init', array( __CLASS__, 'check' ) );
 
+		// Activation does not fire on a plugin update, which is the single
+		// most common reason a migration never runs -- and an automatic
+		// background update runs on cron, which never reaches admin_init.
+		add_action( 'init', array( 'WP_Ban_Options', 'maybe_upgrade' ), 5 );
+
 		if ( is_admin() ) {
 			WP_Ban_Settings::init();
 		}

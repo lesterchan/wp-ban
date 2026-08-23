@@ -6,7 +6,7 @@
  * the version markers are per-site rows, so an activation that seeds only
  * whichever site happened to be current leaves the rest of the network with no
  * row at all. Nothing is destroyed by that -- the same routine runs again from
- * the settings screen's admin_init registration -- which is precisely why it
+ * the init-time registration -- which is precisely why it
  * went unnoticed: every site heals the moment somebody opens its dashboard,
  * and a network whose subsites are front-end only never does.
  *

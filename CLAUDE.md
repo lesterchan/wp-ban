@@ -100,9 +100,10 @@ banned without banning it. The blocker now turns a verdict into a ban page and
 a reverse DNS lookup, and hoisting it puts a blocking call on every request to
 every site that leaves that list empty.
 
-**Every subcommand calls `WP_Ban_Options::maybe_upgrade()` first**, because the
-migration is driven from `admin_init` and WP-CLI never gets there —
-`WP_Ban_Settings::init()` is behind an `is_admin()` check. Reading without it
+**Every subcommand calls `WP_Ban_Options::maybe_upgrade()` first.** The
+migration also runs on `init` at priority 5 on every request, WP-CLI included,
+so these calls are a belt over that — kept because they cost one marker read
+and make each subcommand correct on its own. Reading without it
 reports an empty ban list on a site that bans plenty; writing without it is
 worse, because the fold-in would later overwrite the new entry from the legacy
 rows it is absorbing, and nothing would say so.
@@ -119,9 +120,10 @@ while the command turns it into a warning.
 
 ## Testing the migration, and the ordering that makes it easy
 
-`WP_Ban_Settings::register()` calls `maybe_upgrade()` **before**
-`register_setting()`, so on an ordinary admin request the fold-in runs before
-either of that function's filters exists. That is the easy path, and a test that
+The migration runs on `init` at priority 5, so it is done before
+`admin_init` fires and therefore before `register_setting()` installs either
+of its filters; `WP_Ban_Settings::register()` still calls `maybe_upgrade()`
+first as a belt. That is the easy path, and a test that
 takes it proves less than it looks:
 
 * With `register_setting()` already run, the sanitize callback is attached to

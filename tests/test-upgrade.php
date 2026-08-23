@@ -387,4 +387,16 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 		$this->assertSame( array( '192.168.77.10', '10.1.*.*' ), WP_Ban_Options::list_of( 'ips' ), 'The admin_init callback runs the migration.' );
 		$this->assertSame( WP_BAN_DB_VERSION, WP_Ban_Options::markers()['db'], 'And stamps the marker, so it runs once.' );
 	}
+
+	/**
+	 * The migration is hooked where every request reaches it.
+	 *
+	 * admin_init alone would leave a cron-driven background update serving the
+	 * front end unmigrated until somebody opened wp-admin.
+	 *
+	 * @return void
+	 */
+	public function test_the_migration_runs_on_init_for_every_request() {
+		$this->assertSame( 5, has_action( 'init', array( 'WP_Ban_Options', 'maybe_upgrade' ) ), 'The migration does not run on init priority 5.' );
+	}
 }
