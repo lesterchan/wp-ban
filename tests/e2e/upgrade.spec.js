@@ -78,7 +78,15 @@ function installLegacyRows( rows ) {
 				$out[ $name ] = get_option( $name );
 			}
 			$out['version'] = get_option( 'wp_ban_version' );
-			$out['autoload'] = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", 'banned_stats' ) );
+
+			// Normalised the way autoloadOf() does it: WordPress 6.6 replaced
+			// the yes/no column with a set of values, and a row update_option()
+			// creates now reads 'auto'.
+			$autoload = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", 'banned_stats' ) );
+			$autoloaded = function_exists( 'wp_autoload_values_to_autoload' )
+				? wp_autoload_values_to_autoload()
+				: array( 'yes' );
+			$out['autoload'] = null === $autoload ? '' : ( in_array( $autoload, $autoloaded, true ) ? 'yes' : 'no' );
 			echo '<<<' . wp_json_encode( $out ) . '>>>';`,
 		),
 	);
