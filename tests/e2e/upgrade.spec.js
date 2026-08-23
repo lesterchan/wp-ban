@@ -41,25 +41,46 @@ const {
 } = require( './helpers.js' );
 
 /**
- * Put the install into the shape a 1.x site is in.
+ * Put the install into the shape a 1.x site is in, and report it back.
  *
  * The three prefixed rows go away entirely and the ten unprefixed ones take
  * their place, because that is what the migration has to meet.
  *
+ * Seeding and reading back happen in one `wp eval`, and that is the whole
+ * point: the migration runs on `init`, which a WP-CLI boot fires too, so a
+ * second call to look at the rows would find them already folded in and the
+ * fixture would look like it had never been written. What comes back is the
+ * pre-migration snapshot, taken before this process exits.
+ *
  * @param {Object} rows Legacy rows, keyed by their old option names.
- * @return {void}
+ * @return {Object} Each legacy name mapped to its seeded value, plus the
+ *                  `version` row and the `autoload` flag for banned_stats.
  */
 function installLegacyRows( rows ) {
 	const data = Buffer.from( JSON.stringify( rows ), 'utf8' ).toString( 'base64' );
 
-	wpEval(
-		`delete_option( 'wp_ban_options' );
-		delete_option( 'wp_ban_version' );
-		delete_option( 'wp_ban_stats' );
-		foreach ( json_decode( base64_decode( '${ data }' ), true ) as $name => $value ) {
-			update_option( $name, $value );
-		}
-		echo '<<<done>>>';`,
+	return JSON.parse(
+		wpEval(
+			`global $wpdb;
+			delete_option( 'wp_ban_options' );
+			delete_option( 'wp_ban_version' );
+			delete_option( 'wp_ban_stats' );
+			foreach ( json_decode( base64_decode( '${ data }' ), true ) as $name => $value ) {
+				update_option( $name, $value );
+			}
+			$names = array(
+				'banned_options', 'banned_message', 'ban_db_version', 'banned_stats',
+				'banned_ips', 'banned_ips_range', 'banned_hosts',
+				'banned_referers', 'banned_user_agents', 'banned_exclude_ips'
+			);
+			$out = array();
+			foreach ( $names as $name ) {
+				$out[ $name ] = get_option( $name );
+			}
+			$out['version'] = get_option( 'wp_ban_version' );
+			$out['autoload'] = $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", 'banned_stats' ) );
+			echo '<<<' . wp_json_encode( $out ) . '>>>';`,
+		),
 	);
 }
 
@@ -155,17 +176,15 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 	test( 'the fixture really is a 1.x install, and one admin request folds all ten rows in', async ( {
 		page,
 	} ) => {
-		installLegacyRows( LEGACY );
-
-		// The precondition the rest of this file leans on. Without it a run in
-		// which installLegacyRows() quietly did nothing would still go green,
-		// because "the old rows are gone afterwards" is true of rows that were
-		// never there.
-		const before = getLegacyRows();
+		// The precondition the rest of this file leans on, and the seeding call
+		// reports it: without it a run in which installLegacyRows() quietly did
+		// nothing would still go green, because "the old rows are gone
+		// afterwards" is true of rows that were never there.
+		const before = installLegacyRows( LEGACY );
 
 		expect( before.banned_options ).not.toBe( false );
 		expect( before.banned_ips ).not.toBe( false );
-		expect( getVersionRow() ).toBe( false );
+		expect( before.version ).toBe( false );
 
 		// No reactivation: this is the update-through-the-Plugins-screen path,
 		// where the activation hook never fires and admin_init runs alone.
@@ -262,9 +281,9 @@ test.describe( 'The pre-2.0.0 upgrade', () => {
 	} );
 
 	test( 'the counters move to their own row and stop being autoloaded', async ( { page } ) => {
-		installLegacyRows( LEGACY );
+		const seeded = installLegacyRows( LEGACY );
 
-		expect( autoloadOf( 'banned_stats' ) ).toBe( 'yes' );
+		expect( seeded.autoload ).toBe( 'yes' );
 
 		await openSettings( page );
 

@@ -391,8 +391,8 @@ class WP_Ban_Upgrade_Test extends WP_Ban_TestCase {
 	/**
 	 * The migration is hooked where every request reaches it.
 	 *
-	 * admin_init alone would leave a cron-driven background update serving the
-	 * front end unmigrated until somebody opened wp-admin.
+	 * Hooking admin_init alone would leave a cron-driven background update
+	 * serving the front end unmigrated until somebody opened wp-admin.
 	 *
 	 * @return void
 	 */
