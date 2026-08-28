@@ -1,10 +1,6 @@
 /**
- * WP-Ban settings screen.
- *
- * Vanilla ES2017, no library and no build step: this plugin was the only thing
- * asking wp-admin for one. The single listener is delegated from document and
- * matches on data-wp-ban-action, so the script does not care when the fields
- * appear or what wraps a button's label.
+ * WP-Ban settings screen. One listener delegated from document, matching on
+ * data-wp-ban-action, so it does not care when the fields appear.
  */
 ( function() {
 	'use strict';
